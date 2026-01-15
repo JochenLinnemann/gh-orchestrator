@@ -177,6 +177,8 @@ These may be introduced later **only if justified by real needs**.
 
 ## Constraints
 
+v0 core logic must be framework-agnostic and testable (pure functions). Webhook/HTTP integration is a thin outer layer later.
+
 ### Budget
 - Minimize infrastructure and operational costs
 - Avoid always-on services unless necessary

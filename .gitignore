@@ -15,3 +15,5 @@
 # Build artifacts
 dist/
 build/
+bin
+obj
