@@ -1,6 +1,6 @@
 # AGENTS.md
 
-This repository is a governance framework for AI-assisted development.
+This repository defines governance and execution rules for AI-assisted development.
 
 ## First: establish context
 Before making changes, read:

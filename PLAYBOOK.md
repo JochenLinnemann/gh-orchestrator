@@ -2,6 +2,8 @@
 
 *A practical, GitHub-first operating model for running AI workers (Codex / OpenAI models) against multi-repo projects using a Kanban board and self-hosted orchestration.*
 
+AI guidance here must not conflict with ARCHITECTURE.md, DECISIONS.md, or this Playbook.
+
 ---
 
 ## 1) Goal
