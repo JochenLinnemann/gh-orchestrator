@@ -179,6 +179,19 @@ This supports maintainability and operational simplicity.
 
 ---
 
+## Decision: Implementation language is C# (.NET)
+
+**Status:** Accepted  
+**Date:** 2026-01-15  
+
+**Rationale**
+Maintainer expertise + maintainability + type safety.
+
+**Consequences**
+- .NET runtime dependency; avoid extra libs until needed.
+
+---
+
 ## Notes
 
 Future decisions should:
