@@ -21,6 +21,36 @@ public class CommandParserTests
     }
 
     [Fact]
+    public void ParseAiStartCommand_NotAtBeginning_StillParsed()
+    {
+        var comment = "Some context\n/ai start\nAdd logging to handler";
+        var result = CommandParser.ParseAiStartCommand(comment);
+        
+        Assert.NotNull(result);
+        Assert.Contains("Add logging", result);
+    }
+
+    [Fact]
+    public void ParseAiStartCommand_WithLeadingWhitespace_Accepted()
+    {
+        var comment = "  /ai start\nAdd feature";
+        var result = CommandParser.ParseAiStartCommand(comment);
+        
+        Assert.Equal("Add feature", result);
+    }
+
+    [Fact]
+    public void ParseAiStartCommand_WithTrailingTextOnSameLine_Included()
+    {
+        var comment = "/ai start Add logging and fix bug\nMore details here";
+        var result = CommandParser.ParseAiStartCommand(comment);
+        
+        Assert.NotNull(result);
+        Assert.Contains("Add logging and fix bug", result);
+        Assert.Contains("More details", result);
+    }
+
+    [Fact]
     public void ParseAiStartCommand_MultilineDescription_PreservesContent()
     {
         var comment = "/ai start\nAdd logging\n\n- To handler.py\n- Verbose mode";
@@ -113,6 +143,70 @@ Some context here.
     }
 
     [Fact]
+    public void ParseRepositories_LineFormat_ParsesCorrectly()
+    {
+        var body = "Repos: org/service-a, org/service-b, org/service-c";
+        var repos = CommandParser.ParseRepositories(body);
+        
+        Assert.Equal(3, repos.Count);
+        Assert.Contains("org/service-a", repos);
+        Assert.Contains("org/service-b", repos);
+        Assert.Contains("org/service-c", repos);
+    }
+
+    [Fact]
+    public void ParseRepositories_LineFormatNoSpaces_ParsesCorrectly()
+    {
+        var body = "Repos: owner/repo1,owner/repo2,owner/repo3";
+        var repos = CommandParser.ParseRepositories(body);
+        
+        Assert.Equal(3, repos.Count);
+        Assert.Contains("owner/repo1", repos);
+        Assert.Contains("owner/repo2", repos);
+        Assert.Contains("owner/repo3", repos);
+    }
+
+    [Fact]
+    public void ParseRepositories_LineFormatWithLeadingSpace_ParsesCorrectly()
+    {
+        var body = "  Repos: org/a, org/b";
+        var repos = CommandParser.ParseRepositories(body);
+        
+        Assert.Equal(2, repos.Count);
+        Assert.Contains("org/a", repos);
+        Assert.Contains("org/b", repos);
+    }
+
+    [Fact]
+    public void ParseRepositories_LineFormatTakesPrecedence_IgnoresSectionFormat()
+    {
+        var body = @"Repos: org/line-format
+
+## Repositories
+- org/section-format
+";
+        var repos = CommandParser.ParseRepositories(body);
+        
+        // Should use line format and ignore section
+        Assert.Single(repos);
+        Assert.Contains("org/line-format", repos);
+    }
+
+    [Fact]
+    public void ParseRepositories_SectionFormatIfNoLineFormat_FallsBack()
+    {
+        var body = @"## Repositories
+- org/section-a
+- org/section-b
+";
+        var repos = CommandParser.ParseRepositories(body);
+        
+        Assert.Equal(2, repos.Count);
+        Assert.Contains("org/section-a", repos);
+        Assert.Contains("org/section-b", repos);
+    }
+
+    [Fact]
     public void ParseAcceptanceCriteria_SectionFormat_ReturnsContent()
     {
         var body = @"
@@ -177,5 +271,46 @@ Some context here.
         var constraints = CommandParser.ParseConstraints(body);
         
         Assert.Null(constraints);
+    }
+
+    [Fact]
+    public void ParseAiStartCommand_StopsAtNextAiCommand_IgnoresFollowingCommands()
+    {
+        var comment = "/ai start\nAdd logging\n/ai plan\nNext command content";
+        var result = CommandParser.ParseAiStartCommand(comment);
+        
+        Assert.NotNull(result);
+        Assert.Equal("Add logging", result);
+        Assert.DoesNotContain("Next command", result);
+        Assert.DoesNotContain("/ai plan", result);
+    }
+
+    [Fact]
+    public void ParseAiStartCommand_WithAiCommandOnNextLine_ReturnsEmpty()
+    {
+        var comment = "/ai start\n/ai plan something else";
+        var result = CommandParser.ParseAiStartCommand(comment);
+        
+        Assert.Null(result);
+    }
+
+    [Fact]
+    public void ParseRepositories_ExactHeaderMatch_IgnoresOtherRepositories()
+    {
+        var body = "## Other Repositories\n- owner/repo1\n## Repositories\n- owner/repo2";
+        var result = CommandParser.ParseRepositories(body);
+        
+        Assert.Single(result);
+        Assert.Equal("owner/repo2", result[0]);
+    }
+
+    [Fact]
+    public void ParseAcceptanceCriteria_ExactHeaderMatch_IgnoresSimilarHeaders()
+    {
+        var body = "## Acceptance Criteria Details\nSome text\n## Acceptance Criteria\nMain criteria";
+        var result = CommandParser.ParseAcceptanceCriteria(body);
+        
+        Assert.NotNull(result);
+        Assert.Equal("Main criteria", result);
     }
 }

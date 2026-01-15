@@ -55,6 +55,40 @@ Acceptance Criteria: All tests must pass
 Constraints: none
 ```
 
+## Validation Layers
+
+### Inner Layer: TaskQualityGate (Pure Function)
+
+Validates the task specification itself:
+- Acceptance criteria present and explicit
+- Repos present and non-empty
+- Repos valid format (`owner/repo`)
+- Constraints stated (or marked `none`)
+
+No external context needed. Deterministic. Safe to run offline.
+
+### Outer Layer: RunPreflight (Contextual)
+
+Validates external conditions before execution starts:
+- **Issue exists** — GitHub issue found and accessible
+- **Issue is open** — Not closed
+- **No destructive intent** — Conservative escalation for phrases like `delete`, `drop database`, `terraform destroy`, etc.
+
+Complements TaskQualityGate. Takes `TaskSpec` + `IssueContext`.
+
+Returns structured result:
+- `IsValid` — All checks passed
+- `NeedsHumanConfirmation` — Destructive intent detected; requires explicit approval
+- `FailureReason` — Enum: `IssueNotFound`, `IssueClosed`, `DestructiveIntentDetected`
+- `ErrorMessage` — Human-readable explanation
+
+**Destructive Intent Detection** is conservative and explicit:
+- Only checks for a small, maintained list of phrases (case-insensitive):
+  - `delete`, `drop`, `destroy`, `wipe`, `truncate`, `terraform destroy`, `rm -rf`, `format disk`, `purge`
+- No regex parsing, code execution, or "smart" analysis
+- Used for escalation, not enforcement
+- False positives are acceptable (human confirms). The detector is not a safety guarantee; human review remains mandatory.
+
 ## What's NOT Implemented (Intentionally)
 
 ❌ GitHub API client  

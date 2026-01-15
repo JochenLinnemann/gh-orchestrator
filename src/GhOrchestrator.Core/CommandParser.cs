@@ -7,11 +7,52 @@ namespace GhOrchestrator.Core;
 /// </summary>
 public static class CommandParser
 {
-    private static readonly Regex AiStartPattern = new(@"^/ai\s+start\s*\n?(.*)", 
-        RegexOptions.Singleline | RegexOptions.Compiled);
+    /// <summary>
+    /// Matches /ai start command at the beginning of a line (after whitespace).
+    /// Captures everything after the command as the payload.
+    /// </summary>
+    private static readonly Regex AiStartPattern = new(
+        @"^\s*/ai\s+start\s*(.*)$",
+        RegexOptions.Multiline | RegexOptions.Compiled
+    );
+
+    /// <summary>
+    /// Matches repository list in line format: "Repos: owner/repo, owner/repo"
+    /// </summary>
+    private static readonly Regex ReposLinePattern = new(
+        @"^\s*Repos\s*:\s*(.+)$",
+        RegexOptions.IgnoreCase | RegexOptions.Compiled
+    );
+
+    /// <summary>
+    /// Matches individual repository in owner/repo format
+    /// </summary>
+    private static readonly Regex RepoFormatPattern = new(
+        @"[a-zA-Z0-9._-]+/[a-zA-Z0-9._-]+",
+        RegexOptions.Compiled
+    );
+
+    /// <summary>
+    /// Matches repository list item in section format: "- owner/repo"
+    /// </summary>
+    private static readonly Regex RepoListItemPattern = new(
+        @"^\s*-\s+([a-zA-Z0-9._-]+/[a-zA-Z0-9._-]+)",
+        RegexOptions.Compiled
+    );
+
+    /// <summary>
+    /// Matches /ai command at the beginning of a line
+    /// </summary>
+    private static readonly Regex AiCommandPattern = new(
+        @"^\s*/ai\s+",
+        RegexOptions.Multiline | RegexOptions.Compiled
+    );
 
     /// <summary>
     /// Parse /ai start command from an issue comment.
+    /// Accepts /ai start at the beginning of any line (ignoring leading whitespace).
+    /// Task description includes trailing text on the same line plus subsequent lines,
+    /// stopping at the next /ai command or end of comment.
     /// </summary>
     /// <param name="commentText">The raw comment text.</param>
     /// <returns>Task description if command found, null otherwise.</returns>
@@ -20,19 +61,51 @@ public static class CommandParser
         if (string.IsNullOrWhiteSpace(commentText))
             return null;
 
-        var match = AiStartPattern.Match(commentText.Trim());
+        var match = AiStartPattern.Match(commentText);
         if (!match.Success)
             return null;
 
-        return match.Groups[1].Value.Trim();
+        // Extract payload from the same line (after /ai start)
+        var trailingOnLine = match.Groups[1].Value.Trim();
+
+        // Find the position after the /ai start line
+        var contentStartIndex = match.Index + match.Length;
+        if (contentStartIndex >= commentText.Length)
+        {
+            // No content after /ai start command
+            return string.IsNullOrWhiteSpace(trailingOnLine) ? null : trailingOnLine;
+        }
+
+        // Extract remaining content after the /ai start line
+        var remainingContent = commentText.Substring(contentStartIndex);
+
+        // Look for the next /ai command
+        var nextAiMatch = AiCommandPattern.Match(remainingContent);
+        string contentUntilNextCommand;
+
+        if (nextAiMatch.Success)
+        {
+            // Found another /ai command; stop at its beginning
+            contentUntilNextCommand = remainingContent.Substring(0, nextAiMatch.Index).TrimEnd();
+        }
+        else
+        {
+            // No more /ai commands; use all remaining content
+            contentUntilNextCommand = remainingContent.TrimEnd();
+        }
+
+        // Combine trailing text on same line with subsequent content
+        var fullDescription = string.IsNullOrEmpty(trailingOnLine)
+            ? contentUntilNextCommand.TrimStart()
+            : $"{trailingOnLine}\n{contentUntilNextCommand}";
+
+        return string.IsNullOrWhiteSpace(fullDescription) ? null : fullDescription;
     }
 
     /// <summary>
     /// Parse repository list from Issue body.
-    /// Expects a section like:
-    /// ## Repositories
-    /// - owner/repo1
-    /// - owner/repo2
+    /// Tries line format first: "Repos: owner/repo, owner/repo"
+    /// Falls back to section format: "## Repositories\n- owner/repo"
     /// </summary>
     /// <param name="issueBody">The full issue body.</param>
     /// <returns>List of repositories in format "owner/repo".</returns>
@@ -41,13 +114,60 @@ public static class CommandParser
         if (string.IsNullOrWhiteSpace(issueBody))
             return Array.Empty<string>();
 
+        // Try line format first
+        var lineRepos = ParseRepositoriesLineFormat(issueBody);
+        if (lineRepos.Count > 0)
+            return lineRepos;
+
+        // Fall back to section format
+        return ParseRepositoriesSectionFormat(issueBody);
+    }
+
+    /// <summary>
+    /// Parse repositories from "Repos: owner/repo, owner/repo" format.
+    /// </summary>
+    private static IReadOnlyList<string> ParseRepositoriesLineFormat(string issueBody)
+    {
         var repos = new List<string>();
-        var inReposSection = false;
-        var repoPattern = new Regex(@"^\s*-\s+([a-zA-Z0-9._-]+/[a-zA-Z0-9._-]+)");
 
         foreach (var line in issueBody.Split('\n'))
         {
-            if (line.Contains("## Repositories"))
+            var match = ReposLinePattern.Match(line);
+            if (!match.Success)
+                continue;
+
+            var reposText = match.Groups[1].Value;
+            var repoMatches = RepoFormatPattern.Matches(reposText);
+            foreach (Match repoMatch in repoMatches)
+            {
+                repos.Add(repoMatch.Value);
+            }
+
+            // Only process first match (should be unique)
+            break;
+        }
+
+        return repos.AsReadOnly();
+    }
+
+    /// <summary>
+    /// Parse repositories from section format.
+    /// Expects a section like:
+    /// ## Repositories
+    /// - owner/repo1
+    /// - owner/repo2
+    /// </summary>
+    private static IReadOnlyList<string> ParseRepositoriesSectionFormat(string issueBody)
+    {
+        var repos = new List<string>();
+        var inReposSection = false;
+
+        foreach (var line in issueBody.Split('\n'))
+        {
+            var trimmedLine = line.Trim();
+
+            // Check if this is exactly the "## Repositories" header
+            if (trimmedLine.Equals("## Repositories", StringComparison.OrdinalIgnoreCase))
             {
                 inReposSection = true;
                 continue;
@@ -55,12 +175,12 @@ public static class CommandParser
 
             if (inReposSection)
             {
-                // Stop at next section header
-                if (line.StartsWith("##") && !line.Contains("## Repositories"))
+                // Stop at any other section header (but not non-header lines)
+                if (trimmedLine.StartsWith("##"))
                     break;
 
                 // Parse list item
-                var match = repoPattern.Match(line);
+                var match = RepoListItemPattern.Match(line);
                 if (match.Success)
                 {
                     repos.Add(match.Groups[1].Value);
@@ -93,15 +213,17 @@ public static class CommandParser
 
         foreach (var line in issueBody.Split('\n'))
         {
-            // Check for section header
-            if (line.Contains("## Acceptance Criteria"))
+            var trimmedLine = line.Trim();
+
+            // Check for section header (exact match)
+            if (trimmedLine.Equals("## Acceptance Criteria", StringComparison.OrdinalIgnoreCase))
             {
                 inCriteriaSection = true;
                 continue;
             }
 
             // Check for single-line format
-            if (line.Trim().StartsWith("Acceptance Criteria:", StringComparison.OrdinalIgnoreCase))
+            if (trimmedLine.StartsWith("Acceptance Criteria:", StringComparison.OrdinalIgnoreCase))
             {
                 var value = line.Substring(line.IndexOf(':') + 1).Trim();
                 return string.IsNullOrWhiteSpace(value) ? null : value;
@@ -109,15 +231,14 @@ public static class CommandParser
 
             if (inCriteriaSection)
             {
-                // Stop at next section header
-                if (line.StartsWith("##") && !line.Contains("## Acceptance Criteria"))
+                // Stop at any other section header
+                if (trimmedLine.StartsWith("##"))
                     break;
 
                 // Collect non-empty lines
-                var trimmed = line.Trim();
-                if (!string.IsNullOrWhiteSpace(trimmed))
+                if (!string.IsNullOrWhiteSpace(trimmedLine))
                 {
-                    criteria.Add(trimmed);
+                    criteria.Add(trimmedLine);
                 }
             }
         }
@@ -148,15 +269,17 @@ public static class CommandParser
 
         foreach (var line in issueBody.Split('\n'))
         {
-            // Check for section header
-            if (line.Contains("## Constraints"))
+            var trimmedLine = line.Trim();
+
+            // Check for section header (exact match)
+            if (trimmedLine.Equals("## Constraints", StringComparison.OrdinalIgnoreCase))
             {
                 inConstraintsSection = true;
                 continue;
             }
 
             // Check for single-line format
-            if (line.Trim().StartsWith("Constraints:", StringComparison.OrdinalIgnoreCase))
+            if (trimmedLine.StartsWith("Constraints:", StringComparison.OrdinalIgnoreCase))
             {
                 var value = line.Substring(line.IndexOf(':') + 1).Trim();
                 return string.IsNullOrWhiteSpace(value) ? null : value;
@@ -164,15 +287,14 @@ public static class CommandParser
 
             if (inConstraintsSection)
             {
-                // Stop at next section header
-                if (line.StartsWith("##") && !line.Contains("## Constraints"))
+                // Stop at any other section header
+                if (trimmedLine.StartsWith("##"))
                     break;
 
                 // Collect non-empty lines
-                var trimmed = line.Trim();
-                if (!string.IsNullOrWhiteSpace(trimmed))
+                if (!string.IsNullOrWhiteSpace(trimmedLine))
                 {
-                    constraints.Add(trimmed);
+                    constraints.Add(trimmedLine);
                 }
             }
         }
