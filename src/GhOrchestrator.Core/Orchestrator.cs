@@ -63,16 +63,25 @@ public class Orchestrator
             issueCommentEvent.IssueNumber,
             cancellationToken);
 
+        if (issue is null)
+        {
+            return TaskValidationResult.FromPreflight(
+                ValidationResult.Success(),
+                PreflightValidationResult.Failure(
+                    PreflightFailureReason.IssueNotFound,
+                    "Issue does not exist or is inaccessible"));
+        }
+
         var issueContext = new IssueContext(
-            issue is not null,
-            issue?.IsOpen ?? false,
-            issue?.Url);
+            true,
+            issue.IsOpen,
+            issue.Url);
 
         return ProcessIssueComment(
             issueCommentEvent.IssueNumber,
             issueCommentEvent.Repository,
             issueCommentEvent.CommentBody,
-            issue?.Body ?? string.Empty,
+            issue.Body ?? string.Empty,
             issueContext,
             issueCommentEvent.CommentAuthor);
     }
