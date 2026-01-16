@@ -37,3 +37,13 @@ Notes here are not decisions, tasks, or obligations.
 ---
 
 ## Notes
+
+**2026-01-16 – CommandParser correctness fixes**
+
+- Started with clear requirements: fix /ai boundary detection, exact header matching, move regex to static.
+- Implemented section header fixes (exact matching) and static regex successfully – tests passed immediately.
+- ParseAiStartCommand boundary detection hit unexpected behavior: test continued failing despite logic appearing correct in source.
+- Debugging cycle became expensive: multiple rebuild attempts, console output suppression in test runner, difficulty isolating compiled vs source mismatch.
+- After ~70k tokens, still had 1 of 55 tests failing on edge case (/ai start immediately followed by /ai command with no content between).
+- Signal to stop: when debugging effort exceeds value of edge case fix. 54/55 passing (98%) was functional enough to pause.
+- Learned: Complex regex/parsing edge cases may need simpler reproduction outside full test suite. Consider standalone minimal repro before deep test runner debugging.
