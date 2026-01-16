@@ -192,6 +192,37 @@ Maintainer expertise + maintainability + type safety.
 
 ---
 
+## Decision: One Type per File
+
+**Status:** Accepted  
+**Date:** 2026-01-16  
+
+**Context**  
+Having multiple types (classes, interfaces, records, enums) in a single file can make:
+- navigation and discovery harder
+- merge conflicts more frequent
+- code review more difficult
+- testing and mocking less straightforward
+
+However, enforcing strict separation increases file count and can feel rigid for tightly coupled helper types.
+
+**Decision**  
+Each public type must have its own file, named after the type.
+Helper types should be nested as private classes/records/enums within the primary type if:
+- they are only used by the primary type, and
+- they are small (typically < 20 lines)
+
+**Consequences**  
+- ✅ Easier navigation and IDE tooling
+- ✅ Cleaner git history and fewer merge conflicts
+- ✅ Clearer dependency boundaries
+- ❌ More files in the project
+- ❌ Slightly more ceremony for small helper types
+
+This rule applies to the core orchestrator codebase. Tests may co-locate helper types more freely when it improves readability.
+
+---
+
 ## Notes
 
 Future decisions should:
