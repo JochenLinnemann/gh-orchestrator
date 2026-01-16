@@ -11,6 +11,8 @@ Implements Playbook v0 Task Quality Gate (section 3.5).
 - `TaskQualityGate` — Validates tasks against Playbook v0 quality constraints
 - `ValidationResult` — Structured validation result with error messages
 - `TaskValidationResult` — Combined result for Task Quality Gate + preflight checks
+- `TaskRunPlan` — Planned execution run (run ID, repos, and execution steps)
+- `TaskRunPlanner` — Deterministic planner that produces a task run plan
 - `IGitHubClient` — Interface boundary for GitHub operations (read issue, comment, update project, open PR)
 - `Orchestrator` — Stateless coordinator (pure validation only, no GitHub I/O yet)
 
@@ -27,6 +29,7 @@ Implements Playbook v0 Task Quality Gate (section 3.5).
   4. Constraints must be stated (or explicitly marked as `none`)
 
 ✅ xUnit tests for parser and validation behaviors
+✅ Task run planning (run ID formatting + per-repo execution steps)
 
 ## Issue Body Format
 
