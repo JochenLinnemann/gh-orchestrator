@@ -18,25 +18,3 @@ public interface IGitHubClient
 
     Task CreatePullRequest(string repository, PullRequestRequest request, CancellationToken cancellationToken = default);
 }
-
-public record GitHubIssue(
-    int IssueNumber,
-    string Body,
-    bool IsOpen,
-    string? Url = null);
-
-public record IssueCommentEvent(
-    string Repository,
-    int IssueNumber,
-    string CommentBody,
-    string? CommentAuthor = null);
-
-public record ProjectFieldUpdate(
-    string FieldName,
-    string Value);
-
-public record PullRequestRequest(
-    string Title,
-    string Body,
-    string HeadBranch,
-    string BaseBranch);
