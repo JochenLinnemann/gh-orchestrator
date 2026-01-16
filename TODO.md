@@ -66,6 +66,20 @@ Tasks (in order)
 
 ---
 
+## 🟧 Plan 5.1: Manual test setup instructions (webhooks)
+
+Goal: Document how to set up a local/manual test environment for Plan 5’s `/ai start` webhook flow.
+
+Tasks (in order)
+1. (agent) Add explicit setup steps to `SETUP.md` for local webhook testing, including:
+   - Creating/configuring a GitHub App with minimal permissions
+   - Exposing a local webhook receiver (e.g., via a tunneling tool)
+   - Required environment variables and configuration
+   - How to run the orchestrator locally
+2. (human) Confirm the instructions are sufficient to run the manual test in Plan 5.
+
+---
+
 ## 🟧 Plan 6: Task claiming + project updates
 
 Goal: Implement claim logic and Kanban updates per Playbook.
