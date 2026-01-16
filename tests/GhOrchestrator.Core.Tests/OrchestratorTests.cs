@@ -220,4 +220,81 @@ Constraints: none
         Assert.NotNull(result.PreflightResult);
         Assert.Equal(PreflightFailureReason.DestructiveIntentDetected, result.PreflightResult?.FailureReason);
     }
+
+    [Fact]
+    public async Task ProcessIssueCommentAsync_UsesIssueContextFromGitHubClient()
+    {
+        var comment = "/ai start\nAdd logging";
+        var issueBody = @"
+## Repositories
+- org/repo
+
+## Acceptance Criteria
+- Tests pass
+
+Constraints: none
+";
+        var issue = new GitHubIssue(42, issueBody, false, "https://github.com/org/repo/issues/42");
+        var client = new FakeGitHubClient(issue);
+        var issueEvent = new IssueCommentEvent("org/main", 42, comment, "bob");
+
+        var result = await _orchestrator.ProcessIssueCommentAsync(client, issueEvent);
+
+        Assert.True(client.GetIssueCalled);
+        Assert.False(result.IsValid);
+        Assert.Equal(PreflightFailureReason.IssueClosed, result.PreflightResult?.FailureReason);
+    }
+
+    [Fact]
+    public async Task ProcessIssueCommentAsync_OpenIssue_Passes()
+    {
+        var comment = "/ai start\nAdd logging";
+        var issueBody = @"
+## Repositories
+- org/repo
+
+## Acceptance Criteria
+- Tests pass
+
+Constraints: none
+";
+        var issue = new GitHubIssue(42, issueBody, true, "https://github.com/org/repo/issues/42");
+        var client = new FakeGitHubClient(issue);
+        var issueEvent = new IssueCommentEvent("org/main", 42, comment, "bob");
+
+        var result = await _orchestrator.ProcessIssueCommentAsync(client, issueEvent);
+
+        Assert.True(client.GetIssueCalled);
+        Assert.True(result.IsValid);
+    }
+
+    private sealed class FakeGitHubClient : IGitHubClient
+    {
+        private readonly GitHubIssue? _issue;
+
+        public FakeGitHubClient(GitHubIssue? issue)
+        {
+            _issue = issue;
+        }
+
+        public bool GetIssueCalled { get; private set; }
+
+        public Task<GitHubIssue?> GetIssue(string repository, int issueNumber, CancellationToken cancellationToken = default)
+        {
+            GetIssueCalled = true;
+            return Task.FromResult(_issue);
+        }
+
+        public Task AddIssueComment(string repository, int issueNumber, string body, CancellationToken cancellationToken = default) =>
+            Task.CompletedTask;
+
+        public Task UpdateProjectFields(
+            string projectId,
+            int issueNumber,
+            IReadOnlyCollection<ProjectFieldUpdate> updates,
+            CancellationToken cancellationToken = default) => Task.CompletedTask;
+
+        public Task CreatePullRequest(string repository, PullRequestRequest request, CancellationToken cancellationToken = default) =>
+            Task.CompletedTask;
+    }
 }

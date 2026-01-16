@@ -51,6 +51,33 @@ public class Orchestrator
     }
 
     /// <summary>
+    /// Process an issue comment event using GitHub context from a client boundary.
+    /// </summary>
+    public async Task<TaskValidationResult> ProcessIssueCommentAsync(
+        IGitHubClient gitHubClient,
+        IssueCommentEvent issueCommentEvent,
+        CancellationToken cancellationToken = default)
+    {
+        var issue = await gitHubClient.GetIssue(
+            issueCommentEvent.Repository,
+            issueCommentEvent.IssueNumber,
+            cancellationToken);
+
+        var issueContext = new IssueContext(
+            issue is not null,
+            issue?.IsOpen ?? false,
+            issue?.Url);
+
+        return ProcessIssueComment(
+            issueCommentEvent.IssueNumber,
+            issueCommentEvent.Repository,
+            issueCommentEvent.CommentBody,
+            issue?.Body ?? string.Empty,
+            issueContext,
+            issueCommentEvent.CommentAuthor);
+    }
+
+    /// <summary>
     /// Execute a validated task.
     /// TODO: Invoke worker
     /// TODO: GitHub API calls (create branches, open PRs)
