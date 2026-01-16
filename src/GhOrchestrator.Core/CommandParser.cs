@@ -109,11 +109,18 @@ public static class CommandParser
         }
 
         // Combine trailing text on same line with subsequent content
-        var fullDescription = string.IsNullOrEmpty(trailingOnLine)
-            ? contentUntilNextCommand.TrimStart()
-            : $"{trailingOnLine}\n{contentUntilNextCommand}";
-
-        return string.IsNullOrWhiteSpace(fullDescription) ? null : fullDescription;
+        if (string.IsNullOrEmpty(trailingOnLine))
+        {
+            var trimmed = contentUntilNextCommand.TrimStart();
+            return string.IsNullOrWhiteSpace(trimmed) ? null : trimmed;
+        }
+        
+        if (string.IsNullOrEmpty(contentUntilNextCommand))
+        {
+            return trailingOnLine;
+        }
+        
+        return $"{trailingOnLine}\n{contentUntilNextCommand}";
     }
 
     /// <summary>

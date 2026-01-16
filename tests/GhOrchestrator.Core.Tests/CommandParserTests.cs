@@ -286,12 +286,34 @@ Some context here.
     }
 
     [Fact]
+    public void ParseAiStartCommand_StopsAtNextAiCommand2_IgnoresFollowingCommands()
+    {
+        var comment = "/ai start\nAdd logging\nAdd configuration\n/ai plan\nNext command content";
+        var result = CommandParser.ParseAiStartCommand(comment);
+        
+        Assert.NotNull(result);
+        Assert.Equal("Add logging\nAdd configuration", result);
+        Assert.DoesNotContain("Next command", result);
+        Assert.DoesNotContain("/ai plan", result);
+    }
+
+    [Fact]
     public void ParseAiStartCommand_WithAiCommandOnNextLine_ReturnsEmpty()
     {
         var comment = "/ai start\n/ai plan something else";
         var result = CommandParser.ParseAiStartCommand(comment);
         
         Assert.Null(result);
+    }
+
+    [Fact]
+    public void ParseAiStartCommand_WithAiCommandOnNextLine2_ReturnsEmpty()
+    {
+        var comment = "/ai start Something else on the same line\n/ai plan something else";
+        var result = CommandParser.ParseAiStartCommand(comment);
+        
+        Assert.NotNull(result);
+        Assert.Equal("Something else on the same line", result);
     }
 
     [Fact]
