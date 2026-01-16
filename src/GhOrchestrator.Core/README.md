@@ -11,6 +11,7 @@ Implements Playbook v0 Task Quality Gate (section 3.5).
 - `TaskQualityGate` — Validates tasks against Playbook v0 quality constraints
 - `ValidationResult` — Structured validation result with error messages
 - `TaskValidationResult` — Combined result for Task Quality Gate + preflight checks
+- `IGitHubClient` — Interface boundary for GitHub operations (read issue, comment, update project, open PR)
 - `Orchestrator` — Stateless coordinator (pure validation only, no GitHub I/O yet)
 
 ## What's Implemented
