@@ -42,7 +42,7 @@ Tasks (in order)
 
 ---
 
-## 🟧 Plan 4: Roadmap and context hygiene
+## ✅ Plan 4: Roadmap and context hygiene
 
 Goal: Align docs with actual implementation status and next steps.
 
