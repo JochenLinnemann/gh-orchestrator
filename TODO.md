@@ -4,7 +4,7 @@ Focused, incremental plans for small changes. Each plan lists tasks in order wit
 
 ---
 
-## Plan 1: Wire preflight into orchestration (pure functions only)
+## ✅ Plan 1: Wire preflight into orchestration (pure functions only)
 
 Goal: Keep validation deterministic and fully in-process, no GitHub I/O.
 
@@ -17,7 +17,7 @@ Tasks (in order)
 
 ---
 
-## Plan 2: Define thin GitHub boundary (interfaces only)
+## ✅ Plan 2: Define thin GitHub boundary (interfaces only)
 
 Goal: Prepare integration without implementing I/O or adding dependencies.
 
@@ -29,7 +29,7 @@ Tasks (in order)
 
 ---
 
-## Plan 3: Add minimal execution flow stub (no external calls)
+## ✅ Plan 3: Add minimal execution flow stub (no external calls)
 
 Goal: Create a skeletal execution pipeline that can later be connected to real GitHub and worker I/O.
 
@@ -42,7 +42,7 @@ Tasks (in order)
 
 ---
 
-## Plan 4: Roadmap and context hygiene
+## 🟧 Plan 4: Roadmap and context hygiene
 
 Goal: Align docs with actual implementation status and next steps.
 
@@ -54,7 +54,7 @@ Tasks (in order)
 
 ---
 
-## Plan 5: Webhook handling + GitHub App auth (v0 trigger only)
+## 🟧 Plan 5: Webhook handling + GitHub App auth (v0 trigger only)
 
 Goal: Accept `/ai start` from issue comments via GitHub App webhooks.
 
@@ -66,7 +66,7 @@ Tasks (in order)
 
 ---
 
-## Plan 6: Task claiming + project updates
+## 🟧 Plan 6: Task claiming + project updates
 
 Goal: Implement claim logic and Kanban updates per Playbook.
 
@@ -77,7 +77,7 @@ Tasks (in order)
 
 ---
 
-## Plan 7: Multi-repo execution + PR creation (stubs first)
+## 🟧 Plan 7: Multi-repo execution + PR creation (stubs first)
 
 Goal: Create branch + PR per repo for a task run.
 
@@ -88,7 +88,7 @@ Tasks (in order)
 
 ---
 
-## Plan 8: Reporting back to GitHub
+## 🟧 Plan 8: Reporting back to GitHub
 
 Goal: Post summary, PR links, and test instructions to the tracking issue.
 
@@ -99,7 +99,7 @@ Tasks (in order)
 
 ---
 
-## Plan 9: End-to-end manual verification (v0 MVP)
+## 🟧 Plan 9: End-to-end manual verification (v0 MVP)
 
 Goal: Validate the v0 flow with a real GitHub issue and project.
 

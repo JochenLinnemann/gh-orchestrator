@@ -3,10 +3,10 @@
 This roadmap is directional, not a promise.
 
 ## Now
-- Current priorities
+- Implement [TODOs](./TODO.md) to finish v0
 
 ## Next
-- Near-term improvements
+- Plan v1
 
 ## Later
 - Ideas worth revisiting
