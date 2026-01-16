@@ -70,6 +70,72 @@ Exact commands and configuration options will be documented once the implementat
 
 ---
 
+## Manual Webhook Testing (Plan 5)
+
+This section documents the **local/manual test setup** for the `/ai start` webhook flow.
+It assumes you have a local webhook receiver that can call the core handler
+(`IssueCommentWebhookHandler`) with the raw payload and signature header.
+No secrets should be committed to this repository.
+
+### 1) Create a GitHub App (minimal permissions)
+
+1. Go to **GitHub Settings → Developer settings → GitHub Apps → New GitHub App**.
+2. Set a **Webhook URL** to your tunnel URL (see step 2) plus your webhook path.
+3. Set a **Webhook secret** (store it securely; you will set `GH_WEBHOOK_SECRET` locally).
+4. Subscribe to the **Issue comment** webhook event.
+5. Set **Permissions** to the minimum needed:
+   - **Issues**: Read-only (needed to receive issue comment events)
+   - **Metadata**: Read-only (required for all GitHub Apps)
+6. Save the app and **install it** on the test repository only.
+
+> If you need to post comments or update state later, increase permissions intentionally
+> and document the reason.
+
+### 2) Expose a local webhook receiver
+
+Use a tunneling tool to expose your local receiver (examples: ngrok, smee.io).
+
+Example (ngrok):
+```bash
+ngrok http 5000
+```
+
+Use the generated HTTPS URL as the GitHub App webhook URL.
+
+### 3) Configure required environment variables
+
+The core config loader expects these variables:
+
+- `GH_APP_ID` — GitHub App ID (integer)
+- `GH_APP_PRIVATE_KEY` — GitHub App private key (PEM contents)
+- `GH_WEBHOOK_SECRET` — Webhook secret configured in the GitHub App
+
+Example (do not commit):
+```bash
+export GH_APP_ID="123456"
+export GH_APP_PRIVATE_KEY="$(cat /path/to/your/private-key.pem)"
+export GH_WEBHOOK_SECRET="your-webhook-secret"
+```
+
+### 4) Run the orchestrator locally
+
+Start your local webhook receiver (implementation-specific) and ensure it:
+
+1. Listens on the port you exposed via the tunnel.
+2. Extracts the raw request body and the `X-Hub-Signature-256` header.
+3. Calls the core handler with `(payload, signatureHeader, GH_WEBHOOK_SECRET)`.
+
+When this path is wired into the service host, update this section with the exact
+`dotnet run` command and endpoint path.
+
+### 5) Trigger `/ai start`
+
+1. Create or use a test issue in the installed repo.
+2. Comment `/ai start` on the issue.
+3. Confirm the receiver logs the parsed event data and signature validation status.
+
+---
+
 ## Deployment Notes
 
 - The orchestrator is designed to be **self-hosted**
