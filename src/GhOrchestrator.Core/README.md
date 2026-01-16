@@ -10,6 +10,8 @@ Implements Playbook v0 Task Quality Gate (section 3.5).
 - `CommandParser` — Parses `/ai start` commands, repository lists, acceptance criteria, and constraints from Issue bodies
 - `TaskQualityGate` — Validates tasks against Playbook v0 quality constraints
 - `ValidationResult` — Structured validation result with error messages
+- `TaskValidationResult` — Combined result for Task Quality Gate + preflight checks
+- `IGitHubClient` — Interface boundary for GitHub operations (read issue, comment, update project, open PR)
 - `Orchestrator` — Stateless coordinator (pure validation only, no GitHub I/O yet)
 
 ## What's Implemented
@@ -24,7 +26,7 @@ Implements Playbook v0 Task Quality Gate (section 3.5).
   3. Repos must be unambiguous in format (`owner/repo`)
   4. Constraints must be stated (or explicitly marked as `none`)
 
-✅ 30 xUnit tests (all passing)
+✅ xUnit tests for parser and validation behaviors
 
 ## Issue Body Format
 

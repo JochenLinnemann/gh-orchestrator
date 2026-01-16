@@ -18,17 +18,19 @@ public class Orchestrator
     /// <param name="issueBody">Full issue body.</param>
     /// <param name="triggerUser">GitHub user who posted the comment.</param>
     /// <returns>Validation result.</returns>
-    public ValidationResult ProcessIssueComment(
+    public TaskValidationResult ProcessIssueComment(
         int issueNumber,
         string repository,
         string commentText,
         string issueBody,
+        IssueContext issueContext,
         string? triggerUser = null)
     {
         // Parse /ai start command
         var description = CommandParser.ParseAiStartCommand(commentText);
         if (description is null)
-            return ValidationResult.Failure("Comment does not contain /ai start command");
+            return TaskValidationResult.FromTaskQualityGateFailure(
+                ValidationResult.Failure("Comment does not contain /ai start command"));
 
         // Parse metadata from issue body
         var repos = CommandParser.ParseRepositories(issueBody);
@@ -39,7 +41,40 @@ public class Orchestrator
         var task = new TaskSpec(issueNumber, repository, description, repos, triggerUser, acceptanceCriteria, constraints);
 
         // Validate task
-        return TaskQualityGate.Validate(task);
+        var taskQualityGateResult = TaskQualityGate.Validate(task);
+        if (!taskQualityGateResult.IsValid)
+            return TaskValidationResult.FromTaskQualityGateFailure(taskQualityGateResult);
+
+        var preflightResult = RunPreflight.Validate(task, issueContext);
+
+        return TaskValidationResult.FromPreflight(taskQualityGateResult, preflightResult);
+    }
+
+    /// <summary>
+    /// Process an issue comment event using GitHub context from a client boundary.
+    /// </summary>
+    public async Task<TaskValidationResult> ProcessIssueCommentAsync(
+        IGitHubClient gitHubClient,
+        IssueCommentEvent issueCommentEvent,
+        CancellationToken cancellationToken = default)
+    {
+        var issue = await gitHubClient.GetIssue(
+            issueCommentEvent.Repository,
+            issueCommentEvent.IssueNumber,
+            cancellationToken);
+
+        var issueContext = new IssueContext(
+            issue is not null,
+            issue?.IsOpen ?? false,
+            issue?.Url);
+
+        return ProcessIssueComment(
+            issueCommentEvent.IssueNumber,
+            issueCommentEvent.Repository,
+            issueCommentEvent.CommentBody,
+            issue?.Body ?? string.Empty,
+            issueContext,
+            issueCommentEvent.CommentAuthor);
     }
 
     /// <summary>

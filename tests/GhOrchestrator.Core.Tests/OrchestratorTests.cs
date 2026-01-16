@@ -3,6 +3,7 @@ namespace GhOrchestrator.Core.Tests;
 public class OrchestratorTests
 {
     private readonly Orchestrator _orchestrator = new();
+    private static readonly IssueContext OpenIssueContext = new(true, true, "https://github.com/org/repo/issues/42");
 
     [Fact]
     public void ProcessIssueComment_ValidCommentAndIssue_Passes()
@@ -26,6 +27,7 @@ public class OrchestratorTests
             repository: "org/main",
             commentText: comment,
             issueBody: issueBody,
+            issueContext: OpenIssueContext,
             triggerUser: "bob"
         );
 
@@ -52,6 +54,7 @@ Constraints: none
             repository: "org/main",
             commentText: comment,
             issueBody: issueBody,
+            issueContext: OpenIssueContext,
             triggerUser: "bob"
         );
 
@@ -75,6 +78,7 @@ Constraints: none
             repository: "org/main",
             commentText: comment,
             issueBody: issueBody,
+            issueContext: OpenIssueContext,
             triggerUser: "bob"
         );
 
@@ -98,6 +102,7 @@ Constraints: none
             repository: "org/main",
             commentText: comment,
             issueBody: issueBody,
+            issueContext: OpenIssueContext,
             triggerUser: "bob"
         );
 
@@ -122,6 +127,7 @@ Constraints: none
             repository: "org/main",
             commentText: comment,
             issueBody: issueBody,
+            issueContext: OpenIssueContext,
             triggerUser: "bob"
         );
 
@@ -146,9 +152,149 @@ Constraints: none
             repository: "org/main",
             commentText: comment,
             issueBody: issueBody,
+            issueContext: OpenIssueContext,
             triggerUser: "bob"
         );
 
         Assert.True(result.IsValid);
+    }
+
+    [Fact]
+    public void ProcessIssueComment_IssueClosed_FailsPreflight()
+    {
+        var comment = "/ai start\nAdd logging";
+        var issueBody = @"
+## Repositories
+- org/repo
+
+## Acceptance Criteria
+- Tests pass
+
+Constraints: none
+";
+
+        var closedIssueContext = new IssueContext(true, false, "https://github.com/org/repo/issues/42");
+
+        var result = _orchestrator.ProcessIssueComment(
+            issueNumber: 42,
+            repository: "org/main",
+            commentText: comment,
+            issueBody: issueBody,
+            issueContext: closedIssueContext,
+            triggerUser: "bob"
+        );
+
+        Assert.False(result.IsValid);
+        Assert.False(result.NeedsHumanConfirmation);
+        Assert.Contains("closed", result.ErrorMessage);
+        Assert.NotNull(result.PreflightResult);
+        Assert.Equal(PreflightFailureReason.IssueClosed, result.PreflightResult?.FailureReason);
+    }
+
+    [Fact]
+    public void ProcessIssueComment_DestructiveIntent_RequiresEscalation()
+    {
+        var comment = "/ai start\nDelete old tables";
+        var issueBody = @"
+## Repositories
+- org/repo
+
+## Acceptance Criteria
+- Delete old tables
+
+Constraints: none
+";
+
+        var result = _orchestrator.ProcessIssueComment(
+            issueNumber: 42,
+            repository: "org/main",
+            commentText: comment,
+            issueBody: issueBody,
+            issueContext: OpenIssueContext,
+            triggerUser: "bob"
+        );
+
+        Assert.False(result.IsValid);
+        Assert.True(result.NeedsHumanConfirmation);
+        Assert.Contains("destructive", result.ErrorMessage, StringComparison.OrdinalIgnoreCase);
+        Assert.NotNull(result.PreflightResult);
+        Assert.Equal(PreflightFailureReason.DestructiveIntentDetected, result.PreflightResult?.FailureReason);
+    }
+
+    [Fact]
+    public async Task ProcessIssueCommentAsync_UsesIssueContextFromGitHubClient()
+    {
+        var comment = "/ai start\nAdd logging";
+        var issueBody = @"
+## Repositories
+- org/repo
+
+## Acceptance Criteria
+- Tests pass
+
+Constraints: none
+";
+        var issue = new GitHubIssue(42, issueBody, false, "https://github.com/org/repo/issues/42");
+        var client = new FakeGitHubClient(issue);
+        var issueEvent = new IssueCommentEvent("org/main", 42, comment, "bob");
+
+        var result = await _orchestrator.ProcessIssueCommentAsync(client, issueEvent);
+
+        Assert.True(client.GetIssueCalled);
+        Assert.False(result.IsValid);
+        Assert.Equal(PreflightFailureReason.IssueClosed, result.PreflightResult?.FailureReason);
+    }
+
+    [Fact]
+    public async Task ProcessIssueCommentAsync_OpenIssue_Passes()
+    {
+        var comment = "/ai start\nAdd logging";
+        var issueBody = @"
+## Repositories
+- org/repo
+
+## Acceptance Criteria
+- Tests pass
+
+Constraints: none
+";
+        var issue = new GitHubIssue(42, issueBody, true, "https://github.com/org/repo/issues/42");
+        var client = new FakeGitHubClient(issue);
+        var issueEvent = new IssueCommentEvent("org/main", 42, comment, "bob");
+
+        var result = await _orchestrator.ProcessIssueCommentAsync(client, issueEvent);
+
+        Assert.True(client.GetIssueCalled);
+        Assert.True(result.IsValid);
+    }
+
+    private sealed class FakeGitHubClient : IGitHubClient
+    {
+        private readonly GitHubIssue? _issue;
+
+        public FakeGitHubClient(GitHubIssue? issue)
+        {
+            _issue = issue;
+        }
+
+        public bool GetIssueCalled { get; private set; }
+
+        public Task<GitHubIssue?> GetIssue(string repository, int issueNumber, CancellationToken cancellationToken = default)
+        {
+            GetIssueCalled = true;
+            return Task.FromResult(_issue);
+        }
+
+        public Task AddIssueComment(string repository, int issueNumber, string body, CancellationToken cancellationToken = default) =>
+            Task.CompletedTask;
+
+        public Task UpdateProjectFields(
+            string projectId,
+            int issueNumber,
+            IReadOnlyCollection<ProjectFieldUpdate> updates,
+            CancellationToken cancellationToken = default) => Task.CompletedTask;
+
+        public Task CreatePullRequest(string repository, PullRequestRequest request, CancellationToken cancellationToken = default) =>
+            Task.CompletedTask;
     }
 }
