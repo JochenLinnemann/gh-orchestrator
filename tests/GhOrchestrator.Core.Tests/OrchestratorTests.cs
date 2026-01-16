@@ -3,6 +3,7 @@ namespace GhOrchestrator.Core.Tests;
 public class OrchestratorTests
 {
     private readonly Orchestrator _orchestrator = new();
+    private static readonly IssueContext OpenIssueContext = new(true, true, "https://github.com/org/repo/issues/42");
 
     [Fact]
     public void ProcessIssueComment_ValidCommentAndIssue_Passes()
@@ -26,6 +27,7 @@ public class OrchestratorTests
             repository: "org/main",
             commentText: comment,
             issueBody: issueBody,
+            issueContext: OpenIssueContext,
             triggerUser: "bob"
         );
 
@@ -52,6 +54,7 @@ Constraints: none
             repository: "org/main",
             commentText: comment,
             issueBody: issueBody,
+            issueContext: OpenIssueContext,
             triggerUser: "bob"
         );
 
@@ -75,6 +78,7 @@ Constraints: none
             repository: "org/main",
             commentText: comment,
             issueBody: issueBody,
+            issueContext: OpenIssueContext,
             triggerUser: "bob"
         );
 
@@ -98,6 +102,7 @@ Constraints: none
             repository: "org/main",
             commentText: comment,
             issueBody: issueBody,
+            issueContext: OpenIssueContext,
             triggerUser: "bob"
         );
 
@@ -122,6 +127,7 @@ Constraints: none
             repository: "org/main",
             commentText: comment,
             issueBody: issueBody,
+            issueContext: OpenIssueContext,
             triggerUser: "bob"
         );
 
@@ -146,9 +152,72 @@ Constraints: none
             repository: "org/main",
             commentText: comment,
             issueBody: issueBody,
+            issueContext: OpenIssueContext,
             triggerUser: "bob"
         );
 
         Assert.True(result.IsValid);
+    }
+
+    [Fact]
+    public void ProcessIssueComment_IssueClosed_FailsPreflight()
+    {
+        var comment = "/ai start\nAdd logging";
+        var issueBody = @"
+## Repositories
+- org/repo
+
+## Acceptance Criteria
+- Tests pass
+
+Constraints: none
+";
+
+        var closedIssueContext = new IssueContext(true, false, "https://github.com/org/repo/issues/42");
+
+        var result = _orchestrator.ProcessIssueComment(
+            issueNumber: 42,
+            repository: "org/main",
+            commentText: comment,
+            issueBody: issueBody,
+            issueContext: closedIssueContext,
+            triggerUser: "bob"
+        );
+
+        Assert.False(result.IsValid);
+        Assert.False(result.NeedsHumanConfirmation);
+        Assert.Contains("closed", result.ErrorMessage);
+        Assert.NotNull(result.PreflightResult);
+        Assert.Equal(PreflightFailureReason.IssueClosed, result.PreflightResult?.FailureReason);
+    }
+
+    [Fact]
+    public void ProcessIssueComment_DestructiveIntent_RequiresEscalation()
+    {
+        var comment = "/ai start\nDelete old tables";
+        var issueBody = @"
+## Repositories
+- org/repo
+
+## Acceptance Criteria
+- Delete old tables
+
+Constraints: none
+";
+
+        var result = _orchestrator.ProcessIssueComment(
+            issueNumber: 42,
+            repository: "org/main",
+            commentText: comment,
+            issueBody: issueBody,
+            issueContext: OpenIssueContext,
+            triggerUser: "bob"
+        );
+
+        Assert.False(result.IsValid);
+        Assert.True(result.NeedsHumanConfirmation);
+        Assert.Contains("destructive", result.ErrorMessage, StringComparison.OrdinalIgnoreCase);
+        Assert.NotNull(result.PreflightResult);
+        Assert.Equal(PreflightFailureReason.DestructiveIntentDetected, result.PreflightResult?.FailureReason);
     }
 }
