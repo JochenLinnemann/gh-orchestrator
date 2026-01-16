@@ -18,17 +18,19 @@ public class Orchestrator
     /// <param name="issueBody">Full issue body.</param>
     /// <param name="triggerUser">GitHub user who posted the comment.</param>
     /// <returns>Validation result.</returns>
-    public ValidationResult ProcessIssueComment(
+    public TaskValidationResult ProcessIssueComment(
         int issueNumber,
         string repository,
         string commentText,
         string issueBody,
+        IssueContext issueContext,
         string? triggerUser = null)
     {
         // Parse /ai start command
         var description = CommandParser.ParseAiStartCommand(commentText);
         if (description is null)
-            return ValidationResult.Failure("Comment does not contain /ai start command");
+            return TaskValidationResult.FromTaskQualityGateFailure(
+                ValidationResult.Failure("Comment does not contain /ai start command"));
 
         // Parse metadata from issue body
         var repos = CommandParser.ParseRepositories(issueBody);
@@ -39,7 +41,13 @@ public class Orchestrator
         var task = new TaskSpec(issueNumber, repository, description, repos, triggerUser, acceptanceCriteria, constraints);
 
         // Validate task
-        return TaskQualityGate.Validate(task);
+        var taskQualityGateResult = TaskQualityGate.Validate(task);
+        if (!taskQualityGateResult.IsValid)
+            return TaskValidationResult.FromTaskQualityGateFailure(taskQualityGateResult);
+
+        var preflightResult = RunPreflight.Validate(task, issueContext);
+
+        return TaskValidationResult.FromPreflight(taskQualityGateResult, preflightResult);
     }
 
     /// <summary>
