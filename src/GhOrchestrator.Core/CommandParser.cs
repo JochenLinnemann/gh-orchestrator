@@ -9,10 +9,9 @@ public static class CommandParser
 {
     /// <summary>
     /// Matches /ai start command at the beginning of a line (after whitespace).
-    /// Captures everything after the command as the payload.
     /// </summary>
     private static readonly Regex AiStartPattern = new(
-        @"^\s*/ai\s+start\s*(.*)$",
+        @"^\s*/ai\s+start",
         RegexOptions.Multiline | RegexOptions.Compiled
     );
 
@@ -65,19 +64,34 @@ public static class CommandParser
         if (!match.Success)
             return null;
 
-        // Extract payload from the same line (after /ai start)
-        var trailingOnLine = match.Groups[1].Value.Trim();
-
-        // Find the position after the /ai start line
-        var contentStartIndex = match.Index + match.Length;
-        if (contentStartIndex >= commentText.Length)
+        // Find where this line ends
+        var matchEnd = match.Index + match.Length;
+        var lineEnd = commentText.IndexOf('\n', matchEnd);
+        
+        // Extract any trailing text on the same line (after /ai start)
+        string trailingOnLine;
+        int nextLineStart;
+        
+        if (lineEnd == -1)
         {
-            // No content after /ai start command
+            // /ai start is on the last line
+            trailingOnLine = commentText.Substring(matchEnd).Trim();
+            return string.IsNullOrWhiteSpace(trailingOnLine) ? null : trailingOnLine;
+        }
+        else
+        {
+            trailingOnLine = commentText.Substring(matchEnd, lineEnd - matchEnd).Trim();
+            nextLineStart = lineEnd + 1; // Skip the \n
+        }
+
+        if (nextLineStart >= commentText.Length)
+        {
+            // No content after the /ai start line
             return string.IsNullOrWhiteSpace(trailingOnLine) ? null : trailingOnLine;
         }
 
         // Extract remaining content after the /ai start line
-        var remainingContent = commentText.Substring(contentStartIndex);
+        var remainingContent = commentText.Substring(nextLineStart);
 
         // Look for the next /ai command
         var nextAiMatch = AiCommandPattern.Match(remainingContent);
