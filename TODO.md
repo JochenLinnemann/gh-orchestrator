@@ -54,7 +54,7 @@ Tasks (in order)
 
 ---
 
-## 🟧 Plan 5: Webhook handling + GitHub App auth (v0 trigger only)
+## ✅ Plan 5: Webhook handling + GitHub App auth (v0 trigger only)
 
 Goal: Accept `/ai start` from issue comments via GitHub App webhooks.
 
