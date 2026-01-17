@@ -15,6 +15,12 @@ internal sealed class FakeHttpMessageHandler : HttpMessageHandler
 
     protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
     {
+        if (request.Content is not null)
+        {
+            var body = request.Content.ReadAsStringAsync(cancellationToken).GetAwaiter().GetResult();
+            request.Content = new StringContent(body, System.Text.Encoding.UTF8, request.Content.Headers.ContentType?.MediaType);
+        }
+
         Requests.Add(request);
         var response = _handler(request);
         if (response.RequestMessage is null)

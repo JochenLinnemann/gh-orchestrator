@@ -65,17 +65,17 @@ public class GitHubClientTests
             {
                 var metadata = """
                 {
-                  \"data\": {
-                    \"node\": {
-                      \"fields\": {
-                        \"nodes\": [
-                          { \"__typename\": \"ProjectV2SingleSelectField\", \"id\": \"field-ai\", \"name\": \"AI\", \"options\": [ { \"id\": \"opt-running\", \"name\": \"running\" } ] },
-                          { \"__typename\": \"ProjectV2Field\", \"id\": \"field-run\", \"name\": \"Run ID\" }
+                  "data": {
+                    "node": {
+                      "fields": {
+                        "nodes": [
+                          { "__typename": "ProjectV2SingleSelectField", "id": "field-ai", "name": "AI", "options": [ { "id": "opt-running", "name": "running" } ] },
+                          { "__typename": "ProjectV2Field", "id": "field-run", "name": "Run ID" }
                         ]
                       },
-                      \"items\": {
-                        \"nodes\": [
-                          { \"id\": \"item-1\", \"content\": { \"number\": 42 } }
+                      "items": {
+                        "nodes": [
+                          { "id": "item-1", "content": { "number": 42 } }
                         ]
                       }
                     }
