@@ -16,7 +16,7 @@ Implements Playbook v0 Task Quality Gate (section 3.5).
 - `TaskSlugFormatter` — Formats a short task slug for branch naming (issue title first, description fallback, capped length)
 - `BranchNameFormatter` — Formats branch names using the Playbook convention
 - `RepoPullRequestPlan` — Per-repository branch + pull request payload
-- `TaskRunExecutor` — Stub executor that produces per-repo PR payloads
+- `TaskRunExecutor` — Stub executor that produces per-repo PR payloads with per-repo base branches
 - `IGitHubClient` — Interface boundary for GitHub operations (read issue, comment, update project, open PR)
 - `Orchestrator` — Stateless coordinator (pure validation only, no GitHub I/O yet)
 
