@@ -137,23 +137,37 @@ public sealed class GitHubClient : IGitHubClient
         int issueNumber,
         CancellationToken cancellationToken)
     {
-        var request = new
+        string? cursor = null;
+        List<ProjectField>? fields = null;
+
+        while (true)
         {
-            query = ProjectMetadataQuery,
-            variables = new { projectId }
-        };
+            var request = new
+            {
+                query = ProjectMetadataQuery,
+                variables = new { projectId, itemsAfter = cursor }
+            };
 
-        using var response = await SendGraphQl(repository, request, cancellationToken);
-        if (!response.RootElement.TryGetProperty("data", out var dataElement))
-            throw new InvalidOperationException("GraphQL response missing data");
+            using var response = await SendGraphQl(repository, request, cancellationToken);
+            if (!response.RootElement.TryGetProperty("data", out var dataElement))
+                throw new InvalidOperationException("GraphQL response missing data");
 
-        if (!dataElement.TryGetProperty("node", out var nodeElement))
-            throw new InvalidOperationException("GraphQL response missing project node");
+            if (!dataElement.TryGetProperty("node", out var nodeElement))
+                throw new InvalidOperationException("GraphQL response missing project node");
 
-        var fields = ParseFields(nodeElement);
-        var itemId = FindProjectItemId(nodeElement, issueNumber);
+            fields ??= ParseFields(nodeElement);
+            var page = ParseItems(nodeElement);
+            var itemId = TryFindProjectItemId(page.Items, issueNumber);
+            if (itemId is not null)
+                return new ProjectMetadata(itemId, fields);
 
-        return new ProjectMetadata(itemId, fields);
+            if (!page.PageInfo.HasNextPage)
+                break;
+
+            cursor = page.PageInfo.EndCursor;
+        }
+
+        throw new InvalidOperationException($"Project item for issue {issueNumber} not found");
     }
 
     private static List<ProjectField> ParseFields(JsonElement nodeElement)
@@ -194,31 +208,50 @@ public sealed class GitHubClient : IGitHubClient
         return options;
     }
 
-    private static string FindProjectItemId(JsonElement nodeElement, int issueNumber)
+    private static ProjectItemPage ParseItems(JsonElement nodeElement)
     {
         if (!nodeElement.TryGetProperty("items", out var itemsElement))
             throw new InvalidOperationException("Project items not found");
         if (!itemsElement.TryGetProperty("nodes", out var nodesElement))
             throw new InvalidOperationException("Project item nodes not found");
+        if (!itemsElement.TryGetProperty("pageInfo", out var pageInfoElement))
+            throw new InvalidOperationException("Project item pageInfo not found");
 
-        foreach (var item in nodesElement.EnumerateArray())
+        var items = new List<ProjectItem>();
+        foreach (var itemElement in nodesElement.EnumerateArray())
         {
-            if (!item.TryGetProperty("content", out var content))
-                continue;
-            if (!content.TryGetProperty("number", out var numberElement))
-                continue;
+            var id = itemElement.GetProperty("id").GetString();
+            if (string.IsNullOrWhiteSpace(id))
+                throw new InvalidOperationException("Project item id missing");
 
-            if (numberElement.GetInt32() == issueNumber)
+            int? issueNumber = null;
+            if (itemElement.TryGetProperty("content", out var content) &&
+                content.TryGetProperty("number", out var numberElement))
             {
-                var itemId = item.GetProperty("id").GetString();
-                if (string.IsNullOrWhiteSpace(itemId))
-                    throw new InvalidOperationException("Project item id missing");
-
-                return itemId;
+                issueNumber = numberElement.GetInt32();
             }
+
+            items.Add(new ProjectItem(id, issueNumber));
         }
 
-        throw new InvalidOperationException($"Project item for issue {issueNumber} not found");
+        var pageInfo = new ProjectPageInfo(
+            pageInfoElement.GetProperty("hasNextPage").GetBoolean(),
+            pageInfoElement.TryGetProperty("endCursor", out var endCursorElement)
+                ? endCursorElement.GetString()
+                : null);
+
+        return new ProjectItemPage(items, pageInfo);
+    }
+
+    private static string? TryFindProjectItemId(IEnumerable<ProjectItem> items, int issueNumber)
+    {
+        foreach (var item in items)
+        {
+            if (item.IssueNumber == issueNumber)
+                return item.Id;
+        }
+
+        return null;
     }
 
     private async Task<string> GetBranchSha(string repository, string baseBranch, CancellationToken cancellationToken)
@@ -281,6 +314,12 @@ public sealed class GitHubClient : IGitHubClient
 
     private sealed record ProjectMetadata(string ItemId, List<ProjectField> Fields);
 
+    private sealed record ProjectItem(string Id, int? IssueNumber);
+
+    private sealed record ProjectPageInfo(bool HasNextPage, string? EndCursor);
+
+    private sealed record ProjectItemPage(List<ProjectItem> Items, ProjectPageInfo PageInfo);
+
     private sealed record ProjectField(string Id, string Name, string? TypeName, List<ProjectFieldOption> Options)
     {
         public object BuildValue(string value)
@@ -299,7 +338,7 @@ public sealed class GitHubClient : IGitHubClient
     private sealed record ProjectFieldOption(string Id, string Name);
 
     private const string ProjectMetadataQuery = @"
-query($projectId: ID!) {
+query($projectId: ID!, $itemsAfter: String) {
   node(id: $projectId) {
     ... on ProjectV2 {
       fields(first: 100) {
@@ -315,7 +354,7 @@ query($projectId: ID!) {
           }
         }
       }
-      items(first: 100) {
+      items(first: 100, after: $itemsAfter) {
         nodes {
           id
           content {
@@ -323,6 +362,10 @@ query($projectId: ID!) {
               number
             }
           }
+        }
+        pageInfo {
+          hasNextPage
+          endCursor
         }
       }
     }
