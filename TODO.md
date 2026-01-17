@@ -80,7 +80,7 @@ Tasks (in order)
 
 ---
 
-## 🟧 Plan 6: Task claiming + project updates
+## ✅ Plan 6: Task claiming + project updates
 
 Goal: Implement claim logic and Kanban updates per Playbook.
 

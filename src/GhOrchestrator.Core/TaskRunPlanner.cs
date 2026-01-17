@@ -1,5 +1,3 @@
-using System.Globalization;
-
 namespace GhOrchestrator.Core;
 
 /// <summary>
@@ -23,17 +21,11 @@ public static class TaskRunPlanner
         if (task.Repos.Count == 0)
             return TaskRunPlanResult.Failure("Repos must be present and non-empty");
 
-        var runId = FormatRunId(task.IssueNumber, now);
+        var runId = RunIdFormatter.Format(task.IssueNumber, now);
         var repos = task.Repos.ToArray();
         var steps = BuildSteps(repos);
 
         return TaskRunPlanResult.Success(new TaskRunPlan(runId, repos, steps));
-    }
-
-    private static string FormatRunId(int issueNumber, DateTimeOffset now)
-    {
-        var timestamp = now.ToString("yyyyMMddHHmmss", CultureInfo.InvariantCulture);
-        return $"run-{issueNumber}-{timestamp}";
     }
 
     private static IReadOnlyList<TaskRunStep> BuildSteps(IReadOnlyList<string> repos)
