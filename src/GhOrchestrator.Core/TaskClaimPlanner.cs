@@ -9,6 +9,12 @@ public static class TaskClaimPlanner
     private const string AiRunning = "running";
     private const string StatusInProgress = "In Progress";
 
+    public static TaskClaimResult Plan(ProjectTaskState current, int issueNumber, DateTimeOffset now)
+    {
+        var runId = RunIdFormatter.Format(issueNumber, now);
+        return Plan(current, runId);
+    }
+
     public static TaskClaimResult Plan(ProjectTaskState current, string runId)
     {
         if (string.IsNullOrWhiteSpace(runId))

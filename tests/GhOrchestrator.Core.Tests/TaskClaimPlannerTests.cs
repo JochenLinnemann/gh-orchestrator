@@ -3,6 +3,20 @@ namespace GhOrchestrator.Core.Tests;
 public class TaskClaimPlannerTests
 {
     [Fact]
+    public void Plan_WithIssueNumber_GeneratesRunIdUpdate()
+    {
+        var current = new ProjectTaskState(null, null, null);
+        var now = new DateTimeOffset(2026, 1, 15, 8, 30, 45, TimeSpan.Zero);
+
+        var result = TaskClaimPlanner.Plan(current, 42, now);
+
+        Assert.True(result.IsValid);
+        Assert.Contains(result.Updates, update =>
+            update.FieldName == ProjectFieldNames.RunId &&
+            update.Value == "run-42-20260115083045");
+    }
+
+    [Fact]
     public void Plan_WhenUnclaimed_ReturnsUpdatesForAllFields()
     {
         var current = new ProjectTaskState(null, null, null);
