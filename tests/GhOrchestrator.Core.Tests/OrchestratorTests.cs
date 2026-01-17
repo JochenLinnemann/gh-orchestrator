@@ -26,6 +26,7 @@ public class OrchestratorTests
             issueNumber: 42,
             repository: "org/main",
             commentText: comment,
+            issueTitle: "Add logging",
             issueBody: issueBody,
             issueContext: OpenIssueContext,
             triggerUser: "bob"
@@ -53,6 +54,7 @@ Constraints: none
             issueNumber: 42,
             repository: "org/main",
             commentText: comment,
+            issueTitle: "Add logging",
             issueBody: issueBody,
             issueContext: OpenIssueContext,
             triggerUser: "bob"
@@ -77,6 +79,7 @@ Constraints: none
             issueNumber: 42,
             repository: "org/main",
             commentText: comment,
+            issueTitle: "Add logging",
             issueBody: issueBody,
             issueContext: OpenIssueContext,
             triggerUser: "bob"
@@ -101,6 +104,7 @@ Constraints: none
             issueNumber: 42,
             repository: "org/main",
             commentText: comment,
+            issueTitle: "Add logging",
             issueBody: issueBody,
             issueContext: OpenIssueContext,
             triggerUser: "bob"
@@ -126,6 +130,7 @@ Constraints: none
             issueNumber: 42,
             repository: "org/main",
             commentText: comment,
+            issueTitle: "Add logging",
             issueBody: issueBody,
             issueContext: OpenIssueContext,
             triggerUser: "bob"
@@ -151,6 +156,7 @@ Constraints: none
             issueNumber: 42,
             repository: "org/main",
             commentText: comment,
+            issueTitle: "Add logging",
             issueBody: issueBody,
             issueContext: OpenIssueContext,
             triggerUser: "bob"
@@ -179,6 +185,7 @@ Constraints: none
             issueNumber: 42,
             repository: "org/main",
             commentText: comment,
+            issueTitle: "Add logging",
             issueBody: issueBody,
             issueContext: closedIssueContext,
             triggerUser: "bob"
@@ -209,6 +216,7 @@ Constraints: none
             issueNumber: 42,
             repository: "org/main",
             commentText: comment,
+            issueTitle: "Add logging",
             issueBody: issueBody,
             issueContext: OpenIssueContext,
             triggerUser: "bob"
@@ -234,7 +242,7 @@ Constraints: none
 
 Constraints: none
 ";
-        var issue = new GitHubIssue(42, issueBody, false, "https://github.com/org/repo/issues/42");
+        var issue = new GitHubIssue(42, "Add logging", issueBody, false, "https://github.com/org/repo/issues/42");
         var client = new FakeGitHubClient(issue);
         var issueEvent = new IssueCommentEvent("org/main", 42, comment, "bob");
 
@@ -258,7 +266,7 @@ Constraints: none
 
 Constraints: none
 ";
-        var issue = new GitHubIssue(42, issueBody, true, "https://github.com/org/repo/issues/42");
+        var issue = new GitHubIssue(42, "Add logging", issueBody, true, "https://github.com/org/repo/issues/42");
         var client = new FakeGitHubClient(issue);
         var issueEvent = new IssueCommentEvent("org/main", 42, comment, "bob");
 

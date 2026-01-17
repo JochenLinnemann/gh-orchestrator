@@ -5,6 +5,7 @@ public class TaskRunPlannerTests
     private static TaskSpec ValidTask => new(
         IssueNumber: 42,
         Repository: "org/main",
+        Title: "Add logging",
         Description: "Add logging",
         Repos: new[] { "org/service-a", "org/service-b" },
         TriggerUser: "alice",

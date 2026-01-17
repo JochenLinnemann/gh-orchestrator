@@ -13,6 +13,10 @@ Implements Playbook v0 Task Quality Gate (section 3.5).
 - `TaskValidationResult` — Combined result for Task Quality Gate + preflight checks
 - `TaskRunPlan` — Planned execution run (run ID, repos, and execution steps)
 - `TaskRunPlanner` — Deterministic planner that produces a task run plan
+- `TaskSlugFormatter` — Formats a short task slug for branch naming (issue title first, description fallback, capped length)
+- `BranchNameFormatter` — Formats branch names using the Playbook convention
+- `RepoPullRequestPlan` — Per-repository branch + pull request payload
+- `TaskRunExecutor` — Stub executor that produces per-repo PR payloads with per-repo base branches
 - `IGitHubClient` — Interface boundary for GitHub operations (read issue, comment, update project, open PR)
 - `Orchestrator` — Stateless coordinator (pure validation only, no GitHub I/O yet)
 
@@ -30,6 +34,7 @@ Implements Playbook v0 Task Quality Gate (section 3.5).
 
 ✅ xUnit tests for parser and validation behaviors
 ✅ Task run planning (run ID formatting + per-repo execution steps)
+✅ Branch name + pull request payload planning (no GitHub I/O)
 
 ## Issue Body Format
 
@@ -98,7 +103,7 @@ Returns structured result:
 
 ❌ GitHub API client  
 ❌ Webhook handling  
-❌ PR/branch creation  
+❌ GitHub PR/branch creation  
 ❌ Network I/O  
 ❌ Worker execution  
 

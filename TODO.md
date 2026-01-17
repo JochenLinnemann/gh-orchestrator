@@ -91,7 +91,7 @@ Tasks (in order)
 
 ---
 
-## 🟧 Plan 7: Multi-repo execution + PR creation (stubs first)
+## ✅ Plan 7: Multi-repo execution + PR creation (stubs first)
 
 Goal: Create branch + PR per repo for a task run.
 

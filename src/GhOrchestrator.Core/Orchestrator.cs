@@ -22,6 +22,7 @@ public class Orchestrator
         int issueNumber,
         string repository,
         string commentText,
+        string issueTitle,
         string issueBody,
         IssueContext issueContext,
         string? triggerUser = null)
@@ -38,7 +39,7 @@ public class Orchestrator
         var constraints = CommandParser.ParseConstraints(issueBody);
 
         // Create task specification
-        var task = new TaskSpec(issueNumber, repository, description, repos, triggerUser, acceptanceCriteria, constraints);
+        var task = new TaskSpec(issueNumber, repository, issueTitle, description, repos, triggerUser, acceptanceCriteria, constraints);
 
         // Validate task
         var taskQualityGateResult = TaskQualityGate.Validate(task);
@@ -81,6 +82,7 @@ public class Orchestrator
             issueCommentEvent.IssueNumber,
             issueCommentEvent.Repository,
             issueCommentEvent.CommentBody,
+            issue.Title,
             issue.Body ?? string.Empty,
             issueContext,
             issueCommentEvent.CommentAuthor);

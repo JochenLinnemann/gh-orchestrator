@@ -5,6 +5,7 @@ public class RunPreflightTests
     private static TaskSpec ValidTask => new(
         IssueNumber: 1,
         Repository: "org/repo",
+        Title: "Add logging",
         Description: "Add logging",
         Repos: new[] { "org/repo" },
         TriggerUser: "alice",
@@ -174,6 +175,7 @@ public class RunPreflightTests
         var task = new TaskSpec(
             IssueNumber: 1,
             Repository: "org/repo",
+            Title: null,
             Description: null,
             Repos: new[] { "org/repo" },
             TriggerUser: null,
