@@ -26,10 +26,11 @@ public static class TaskRunExecutor
             throw new ArgumentException("Base branch must be provided", nameof(baseBranch));
 
         var plans = new List<RepoPullRequestPlan>(plan.Repos.Count);
+        var shortSlug = TaskSlugFormatter.Format(task.Description);
 
         foreach (var repo in plan.Repos)
         {
-            var branchName = BranchNameFormatter.Format(plan.RunId, repo);
+            var branchName = BranchNameFormatter.Format(plan.RunId, shortSlug);
             var request = new PullRequestRequest(
                 Title: $"AI: {task.Description}",
                 Body: $"Run {plan.RunId} for {repo}.\n\nTask: {task.Description}",

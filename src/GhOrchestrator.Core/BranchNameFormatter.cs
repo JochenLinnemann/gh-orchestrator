@@ -9,23 +9,16 @@ public static class BranchNameFormatter
     /// Format a branch name using the Playbook convention: ai/&lt;run-id&gt;/&lt;short-slug&gt;.
     /// </summary>
     /// <param name="runId">Formatted run identifier.</param>
-    /// <param name="repository">Repository in owner/repo format.</param>
+    /// <param name="shortSlug">Short slug describing the task.</param>
     /// <returns>Branch name string.</returns>
-    public static string Format(string runId, string repository)
+    public static string Format(string runId, string shortSlug)
     {
         if (string.IsNullOrWhiteSpace(runId))
             throw new ArgumentException("Run ID must be provided", nameof(runId));
 
-        if (string.IsNullOrWhiteSpace(repository))
-            throw new ArgumentException("Repository must be provided", nameof(repository));
+        if (string.IsNullOrWhiteSpace(shortSlug))
+            throw new ArgumentException("Short slug must be provided", nameof(shortSlug));
 
-        var shortSlug = GetShortSlug(repository);
         return $"ai/{runId}/{shortSlug}";
-    }
-
-    private static string GetShortSlug(string repository)
-    {
-        var parts = repository.Split('/', StringSplitOptions.RemoveEmptyEntries);
-        return parts.Length > 0 ? parts[^1] : repository.Trim();
     }
 }

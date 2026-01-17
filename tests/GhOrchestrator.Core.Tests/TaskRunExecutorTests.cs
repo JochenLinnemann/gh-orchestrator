@@ -23,8 +23,8 @@ public class TaskRunExecutorTests
         var plans = TaskRunExecutor.BuildPullRequestPlans(ValidTask, plan, "main");
 
         Assert.Single(plans);
-        Assert.Equal("ai/run-42-20260115083045/service-a", plans[0].BranchName);
-        Assert.Equal("ai/run-42-20260115083045/service-a", plans[0].PullRequest.HeadBranch);
+        Assert.Equal("ai/run-42-20260115083045/add-logging", plans[0].BranchName);
+        Assert.Equal("ai/run-42-20260115083045/add-logging", plans[0].PullRequest.HeadBranch);
     }
 
     [Fact]
@@ -40,5 +40,6 @@ public class TaskRunExecutorTests
         Assert.Equal(2, plans.Count);
         Assert.Equal("org/service-a", plans[0].Repository);
         Assert.Equal("org/service-b", plans[1].Repository);
+        Assert.Equal(plans[0].BranchName, plans[1].BranchName);
     }
 }
