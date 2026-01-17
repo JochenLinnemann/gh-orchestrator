@@ -9,10 +9,15 @@ public class IssueCommentWebhookHandler
         if (!GitHubWebhookSignatureVerifier.IsValid(payload, signatureHeader, webhookSecret))
             return WebhookHandlingResult.Failure("Webhook signature validation failed");
 
-        return ParsePayload(payload);
+        return ParsePayloadInternal(payload);
     }
 
-    private static WebhookHandlingResult ParsePayload(string payload)
+    public WebhookHandlingResult ParsePayload(string payload)
+    {
+        return ParsePayloadInternal(payload);
+    }
+
+    private static WebhookHandlingResult ParsePayloadInternal(string payload)
     {
         try
         {
