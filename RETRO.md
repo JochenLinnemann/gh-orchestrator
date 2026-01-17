@@ -55,3 +55,8 @@ Notes here are not decisions, tasks, or obligations.
 - Plan 6: Manual Test not possible as Task Claiming cannot be wired to host, as no GitHub client has been chosen yet.
 - Learned: Revisit plans, to include all instruction to complete manual jobs, and plan tests so that they can actually be executed with the current state of the implementation.
 
+**2026-01-17 – Test environment assumptions**
+
+- When planning manual test procedures, the checklist should verify: (a) all required dependencies/projects exist, (b) external service choices are locked in (e.g., GitHub client implementation), (c) configuration is documented. 
+- Both recent issues (missing Host, no GitHub client) were blockers discovered during execution rather than planning. Earlier validation could have surfaced these gaps.
+
