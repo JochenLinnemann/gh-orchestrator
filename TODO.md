@@ -113,7 +113,7 @@ Tasks (in order)
 
 ---
 
-## 🟧 Plan 10: Host wiring + webhook endpoint (minimal runnable service)
+## ✅ Plan 10: Host wiring + webhook endpoint (minimal runnable service)
 
 Goal: Make `GhOrchestrator.Host` accept GitHub App webhooks and dispatch to Core.
 

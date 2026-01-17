@@ -1,13 +1,11 @@
 using GhOrchestrator.Core;
 using GhOrchestrator.Host;
-using System.Text;
+using System.Text.Json;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Load GitHub App config from environment
-var appId = builder.Configuration["GH_APP_ID"] ?? throw new InvalidOperationException("GH_APP_ID not set");
-var privateKey = builder.Configuration["GH_APP_PRIVATE_KEY"] ?? throw new InvalidOperationException("GH_APP_PRIVATE_KEY not set");
-var webhookSecret = builder.Configuration["GH_WEBHOOK_SECRET"] ?? throw new InvalidOperationException("GH_WEBHOOK_SECRET not set");
+var hostConfiguration = GitHubHostConfiguration.Load(builder.Configuration);
+var webhookHandler = new IssueCommentWebhookHandler();
 
 var app = builder.Build();
 
@@ -19,6 +17,13 @@ app.MapPost("/webhook", async (HttpRequest request) =>
 {
     try
     {
+        var eventName = request.Headers["X-GitHub-Event"].ToString();
+        if (!string.Equals(eventName, "issue_comment", StringComparison.OrdinalIgnoreCase))
+        {
+            app.Logger.LogInformation("Ignoring event type: {Event}", eventName);
+            return Results.Ok(new { status = "Event received but ignored (unsupported event type)" });
+        }
+
         // Extract raw body
         request.EnableBuffering();
         var body = await new StreamReader(request.Body).ReadToEndAsync();
@@ -27,12 +32,9 @@ app.MapPost("/webhook", async (HttpRequest request) =>
         // Extract signature header
         var signatureHeader = request.Headers["X-Hub-Signature-256"].ToString();
 
-        app.Logger.LogInformation("Received webhook: signature={Signature}, bodyLength={Length}", signatureHeader, body.Length);
+        app.Logger.LogInformation("Received webhook: event={Event}, signature={Signature}, bodyLength={Length}", eventName, signatureHeader, body.Length);
 
-        // Verify signature
-        var isValid = GitHubWebhookSignatureVerifier.IsValid(body, signatureHeader, webhookSecret);
-
-        if (!isValid)
+        if (!GitHubWebhookSignatureVerifier.IsValid(body, signatureHeader, hostConfiguration.WebhookSecret))
         {
             app.Logger.LogWarning("Webhook signature verification failed");
             return Results.Unauthorized();
@@ -40,28 +42,32 @@ app.MapPost("/webhook", async (HttpRequest request) =>
 
         app.Logger.LogInformation("Signature verification passed");
 
-        // Parse event from GitHub's webhook payload
-        var options = new System.Text.Json.JsonSerializerOptions { PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase };
-        var payload = System.Text.Json.JsonSerializer.Deserialize<GitHubIssueCommentWebhookPayload>(body, options);
-        if (payload == null)
+        var action = TryGetAction(body);
+        if (action is null)
         {
-            app.Logger.LogWarning("Failed to deserialize webhook payload");
+            app.Logger.LogWarning("Failed to read action from webhook payload");
             return Results.BadRequest("Invalid payload");
         }
 
-        // Filter to only "created" actions (ignore edits, deletes)
-        if (payload.Action != "created")
+        if (!string.Equals(action, "created", StringComparison.OrdinalIgnoreCase))
         {
-            app.Logger.LogInformation("Ignoring action: {Action}", payload.Action);
+            app.Logger.LogInformation("Ignoring action: {Action}", action);
             return Results.Ok(new { status = "Event received but ignored (action not 'created')" });
         }
 
-        // Map to core event model
-        var @event = new IssueCommentEvent(
-            Repository: payload.Repository.FullName,
-            IssueNumber: payload.Issue.Number,
-            CommentBody: payload.Comment.Body,
-            CommentAuthor: payload.Comment.User.Login);
+        var result = webhookHandler.ParsePayload(body);
+        if (!result.IsValid || result.Event is null)
+        {
+            app.Logger.LogWarning("Failed to parse webhook payload: {Error}", result.ErrorMessage);
+            return Results.BadRequest(result.ErrorMessage ?? "Invalid payload");
+        }
+
+        var @event = result.Event;
+        if (!IsAllowedOrg(@event.Repository, hostConfiguration.AllowedOrg))
+        {
+            app.Logger.LogWarning("Rejected webhook for unauthorized org: {Repository}", @event.Repository);
+            return Results.Forbid();
+        }
 
         app.Logger.LogInformation("Parsed event: repo={Repo}, issue={Issue}, author={Author}, body={Body}", @event.Repository, @event.IssueNumber, @event.CommentAuthor, @event.CommentBody);
 
@@ -76,3 +82,28 @@ app.MapPost("/webhook", async (HttpRequest request) =>
 });
 
 app.Run();
+
+static string? TryGetAction(string payload)
+{
+    try
+    {
+        using var document = JsonDocument.Parse(payload);
+        return document.RootElement.TryGetProperty("action", out var action)
+            ? action.GetString()
+            : null;
+    }
+    catch (JsonException)
+    {
+        return null;
+    }
+}
+
+static bool IsAllowedOrg(string repository, string allowedOrg)
+{
+    var separatorIndex = repository.IndexOf('/');
+    if (separatorIndex <= 0)
+        return false;
+
+    var org = repository[..separatorIndex];
+    return string.Equals(org, allowedOrg, StringComparison.OrdinalIgnoreCase);
+}
