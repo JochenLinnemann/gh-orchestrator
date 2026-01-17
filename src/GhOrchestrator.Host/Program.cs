@@ -34,10 +34,17 @@ app.MapPost("/webhook", async (HttpRequest request) =>
 
         app.Logger.LogInformation("Received webhook: event={Event}, signature={Signature}, bodyLength={Length}", eventName, signatureHeader, body.Length);
 
-        if (!GitHubWebhookSignatureVerifier.IsValid(body, signatureHeader, hostConfiguration.WebhookSecret))
+        var result = webhookHandler.Handle(body, signatureHeader, hostConfiguration.WebhookSecret);
+        if (!result.IsValid || result.Event is null)
         {
-            app.Logger.LogWarning("Webhook signature verification failed");
-            return Results.Unauthorized();
+            if (string.Equals(result.ErrorMessage, "Webhook signature validation failed", StringComparison.OrdinalIgnoreCase))
+            {
+                app.Logger.LogWarning("Webhook signature verification failed");
+                return Results.Unauthorized();
+            }
+
+            app.Logger.LogWarning("Failed to parse webhook payload: {Error}", result.ErrorMessage);
+            return Results.BadRequest(result.ErrorMessage ?? "Invalid payload");
         }
 
         app.Logger.LogInformation("Signature verification passed");
@@ -53,13 +60,6 @@ app.MapPost("/webhook", async (HttpRequest request) =>
         {
             app.Logger.LogInformation("Ignoring action: {Action}", action);
             return Results.Ok(new { status = "Event received but ignored (action not 'created')" });
-        }
-
-        var result = webhookHandler.ParsePayload(body);
-        if (!result.IsValid || result.Event is null)
-        {
-            app.Logger.LogWarning("Failed to parse webhook payload: {Error}", result.ErrorMessage);
-            return Results.BadRequest(result.ErrorMessage ?? "Invalid payload");
         }
 
         var @event = result.Event;
