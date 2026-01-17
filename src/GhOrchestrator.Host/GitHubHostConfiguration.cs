@@ -2,6 +2,17 @@ namespace GhOrchestrator.Host;
 
 public record GitHubHostConfiguration(long AppId, string? PrivateKeyPath, string? PrivateKeyPem, string WebhookSecret, string AllowedOrg)
 {
+    public string ReadPrivateKeyPem()
+    {
+        if (!string.IsNullOrWhiteSpace(PrivateKeyPem))
+            return PrivateKeyPem;
+
+        if (string.IsNullOrWhiteSpace(PrivateKeyPath))
+            throw new InvalidOperationException("GH_APP_PRIVATE_KEY_PATH or GH_APP_PRIVATE_KEY must be set");
+
+        return File.ReadAllText(PrivateKeyPath);
+    }
+
     public static GitHubHostConfiguration Load(IConfiguration configuration)
     {
         var appIdRaw = configuration["GH_APP_ID"] ?? throw new InvalidOperationException("GH_APP_ID not set");
