@@ -13,7 +13,7 @@ Implements Playbook v0 Task Quality Gate (section 3.5).
 - `TaskValidationResult` — Combined result for Task Quality Gate + preflight checks
 - `TaskRunPlan` — Planned execution run (run ID, repos, and execution steps)
 - `TaskRunPlanner` — Deterministic planner that produces a task run plan
-- `TaskSlugFormatter` — Formats a short task slug for branch naming (issue title first, description fallback)
+- `TaskSlugFormatter` — Formats a short task slug for branch naming (issue title first, description fallback, capped length)
 - `BranchNameFormatter` — Formats branch names using the Playbook convention
 - `RepoPullRequestPlan` — Per-repository branch + pull request payload
 - `TaskRunExecutor` — Stub executor that produces per-repo PR payloads

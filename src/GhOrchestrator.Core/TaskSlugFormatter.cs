@@ -7,6 +7,8 @@ namespace GhOrchestrator.Core;
 /// </summary>
 public static class TaskSlugFormatter
 {
+    private const int MaxLength = 40;
+
     /// <summary>
     /// Build a short slug from a task description.
     /// </summary>
@@ -40,6 +42,13 @@ public static class TaskSlugFormatter
         }
 
         var slug = builder.ToString().Trim('-');
-        return string.IsNullOrWhiteSpace(slug) ? "task" : slug;
+        if (string.IsNullOrWhiteSpace(slug))
+            return "task";
+
+        if (slug.Length <= MaxLength)
+            return slug;
+
+        var truncated = slug[..MaxLength].TrimEnd('-');
+        return string.IsNullOrWhiteSpace(truncated) ? "task" : truncated;
     }
 }
