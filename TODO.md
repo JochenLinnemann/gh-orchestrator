@@ -102,7 +102,7 @@ Tasks (in order)
 
 ---
 
-## 🟧 Plan 8: Reporting back to GitHub
+## ✅ Plan 8: Reporting back to GitHub
 
 Goal: Post summary, PR links, and test instructions to the tracking issue.
 
