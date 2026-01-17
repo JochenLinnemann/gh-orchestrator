@@ -22,8 +22,9 @@ public class GitHubInstallationTokenProviderTests
 
         var httpClient = new HttpClient(handler) { BaseAddress = new Uri("https://api.github.com/") };
         var jwtProvider = new GitHubAppJwtProvider(1, TestKeys.PrivateKeyPem, () => new DateTimeOffset(2025, 12, 31, 0, 0, 0, TimeSpan.Zero));
-        var cache = new GitHubInstallationTokenCache();
-        var provider = new GitHubInstallationTokenProvider(httpClient, jwtProvider, cache, () => new DateTimeOffset(2025, 12, 31, 0, 0, 0, TimeSpan.Zero));
+        var now = new DateTimeOffset(2025, 12, 31, 0, 0, 0, TimeSpan.Zero);
+        var cache = new GitHubInstallationTokenCache(() => now);
+        var provider = new GitHubInstallationTokenProvider(httpClient, jwtProvider, cache, () => now);
 
         var first = await provider.GetInstallationToken("octo/demo");
         var second = await provider.GetInstallationToken("octo/demo");

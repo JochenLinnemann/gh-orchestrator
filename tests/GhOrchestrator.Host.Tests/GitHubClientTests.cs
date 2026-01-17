@@ -48,7 +48,8 @@ public class GitHubClientTests
         await client.CreateBranch("octo/demo", "ai/run-1/task", "main");
 
         var createRequest = handler.Requests.Single(request => request.RequestUri?.AbsolutePath == "/repos/octo/demo/git/refs");
-        var payload = await createRequest.Content!.ReadAsStringAsync();
+        var requestIndex = handler.Requests.IndexOf(createRequest);
+        var payload = handler.RequestBodies[requestIndex] ?? string.Empty;
         using var document = JsonDocument.Parse(payload);
         Assert.Equal("refs/heads/ai/run-1/task", document.RootElement.GetProperty("ref").GetString());
         Assert.Equal("abc123", document.RootElement.GetProperty("sha").GetString());
