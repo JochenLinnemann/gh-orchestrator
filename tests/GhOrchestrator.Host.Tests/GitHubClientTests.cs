@@ -186,7 +186,7 @@ public class GitHubClientTests
             .Where(entry => entry.request.RequestUri?.AbsolutePath == "/graphql")
             .Skip(1)
             .Select(entry => entry.index)
-            .Single();
+            .First();
 
         var payload = handler.RequestBodies[secondGraphQlIndex] ?? string.Empty;
         using var document = JsonDocument.Parse(payload);
