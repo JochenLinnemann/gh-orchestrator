@@ -66,7 +66,7 @@ Tasks (in order)
 
 ---
 
-## 🟧 Plan 5.1: Manual test setup instructions (webhooks)
+## ✅ Plan 5.1: Manual test setup instructions (webhooks)
 
 Goal: Document how to set up a local/manual test environment for Plan 5’s `/ai start` webhook flow.
 

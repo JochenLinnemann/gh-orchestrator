@@ -125,8 +125,10 @@ Start your local webhook receiver (implementation-specific) and ensure it:
 2. Extracts the raw request body and the `X-Hub-Signature-256` header.
 3. Calls the core handler with `(payload, signatureHeader, GH_WEBHOOK_SECRET)`.
 
-When this path is wired into the service host, update this section with the exact
-`dotnet run` command and endpoint path.
+```
+cd src/GhOrchestrator.Core
+dotnet run
+```
 
 ### 5) Trigger `/ai start`
 
