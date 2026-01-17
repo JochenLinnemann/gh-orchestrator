@@ -10,17 +10,19 @@ public static class TaskSlugFormatter
     /// <summary>
     /// Build a short slug from a task description.
     /// </summary>
-    /// <param name="description">Task description.</param>
+    /// <param name="title">Issue title.</param>
+    /// <param name="description">Task description from the /ai start command.</param>
     /// <returns>Slug suitable for branch names.</returns>
-    public static string Format(string description)
+    public static string Format(string title, string description)
     {
-        if (string.IsNullOrWhiteSpace(description))
+        var source = string.IsNullOrWhiteSpace(title) ? description : title;
+        if (string.IsNullOrWhiteSpace(source))
             return "task";
 
-        var builder = new StringBuilder(description.Length);
+        var builder = new StringBuilder(source.Length);
         var previousDash = false;
 
-        foreach (var ch in description.Trim())
+        foreach (var ch in source.Trim())
         {
             var lower = char.ToLowerInvariant(ch);
             if (char.IsLetterOrDigit(lower))

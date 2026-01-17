@@ -6,6 +6,7 @@
 public record TaskSpec(
     int IssueNumber,
     string Repository,
+    string Title,
     string Description,
     IReadOnlyList<string> Repos,
     string? TriggerUser,

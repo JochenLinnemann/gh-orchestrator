@@ -5,6 +5,7 @@ public class TaskRunExecutorTests
     private static TaskSpec ValidTask => new(
         IssueNumber: 42,
         Repository: "org/main",
+        Title: "Improve logging",
         Description: "Add logging",
         Repos: new[] { "org/service-a", "org/service-b" },
         TriggerUser: "alice",
@@ -23,8 +24,8 @@ public class TaskRunExecutorTests
         var plans = TaskRunExecutor.BuildPullRequestPlans(ValidTask, plan, "main");
 
         Assert.Single(plans);
-        Assert.Equal("ai/run-42-20260115083045/add-logging", plans[0].BranchName);
-        Assert.Equal("ai/run-42-20260115083045/add-logging", plans[0].PullRequest.HeadBranch);
+        Assert.Equal("ai/run-42-20260115083045/improve-logging", plans[0].BranchName);
+        Assert.Equal("ai/run-42-20260115083045/improve-logging", plans[0].PullRequest.HeadBranch);
     }
 
     [Fact]

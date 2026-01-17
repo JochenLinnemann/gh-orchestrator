@@ -26,7 +26,7 @@ public static class TaskRunExecutor
             throw new ArgumentException("Base branch must be provided", nameof(baseBranch));
 
         var plans = new List<RepoPullRequestPlan>(plan.Repos.Count);
-        var shortSlug = TaskSlugFormatter.Format(task.Description);
+        var shortSlug = TaskSlugFormatter.Format(task.Title, task.Description);
 
         foreach (var repo in plan.Repos)
         {
