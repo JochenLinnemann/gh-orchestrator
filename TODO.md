@@ -126,7 +126,7 @@ Tasks (in order)
 
 ---
 
-## 🟧 Plan 11: GitHub App auth + `IGitHubClient` implementation (v0 scope)
+## ✅ Plan 11: GitHub App auth + `IGitHubClient` implementation (v0 scope)
 
 Goal: Implement minimal GitHub operations with GitHub App installation tokens.
 

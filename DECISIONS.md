@@ -223,6 +223,29 @@ This rule applies to the core orchestrator codebase. Tests may co-locate helper 
 
 ---
 
+## Decision: GitHub API surface (REST + GraphQL) for v0
+
+**Status:** Accepted  
+**Date:** 2026-01-20  
+
+**Context**  
+The orchestrator must read/write Issues, create PRs, and update Projects v2 fields. GitHub Projects v2 APIs are only fully supported in GraphQL, while Issues and PRs are well-supported in REST.
+
+**Decision**  
+Use:
+- **REST** for Issues, comments, branches, and pull requests
+- **GraphQL** for GitHub Projects v2 field updates
+
+**Consequences**  
+- ✅ Clear mapping to GitHub’s supported surfaces
+- ✅ Keeps project-field updates aligned with Projects v2 APIs
+- ❌ Requires handling two API styles
+- ❌ Requires GraphQL parsing and error handling in the client
+
+This tradeoff is accepted for correctness and minimal scope.
+
+---
+
 ## Notes
 
 Future decisions should:

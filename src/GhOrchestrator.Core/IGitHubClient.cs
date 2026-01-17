@@ -11,9 +11,16 @@ public interface IGitHubClient
     Task AddIssueComment(string repository, int issueNumber, string body, CancellationToken cancellationToken = default);
 
     Task UpdateProjectFields(
+        string repository,
         string projectId,
         int issueNumber,
         IReadOnlyCollection<ProjectFieldUpdate> updates,
+        CancellationToken cancellationToken = default);
+
+    Task CreateBranch(
+        string repository,
+        string newBranch,
+        string baseBranch,
         CancellationToken cancellationToken = default);
 
     Task CreatePullRequest(string repository, PullRequestRequest request, CancellationToken cancellationToken = default);

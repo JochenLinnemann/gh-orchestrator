@@ -297,9 +297,16 @@ Constraints: none
             Task.CompletedTask;
 
         public Task UpdateProjectFields(
+            string repository,
             string projectId,
             int issueNumber,
             IReadOnlyCollection<ProjectFieldUpdate> updates,
+            CancellationToken cancellationToken = default) => Task.CompletedTask;
+
+        public Task CreateBranch(
+            string repository,
+            string newBranch,
+            string baseBranch,
             CancellationToken cancellationToken = default) => Task.CompletedTask;
 
         public Task CreatePullRequest(string repository, PullRequestRequest request, CancellationToken cancellationToken = default) =>
