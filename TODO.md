@@ -113,6 +113,119 @@ Tasks (in order)
 
 ---
 
+---
+
+---
+
+## 🟧 Plan 10: Host wiring + webhook endpoint (minimal runnable service)
+
+Goal: Make `GhOrchestrator.Host` accept GitHub App webhooks and dispatch to Core.
+
+Tasks (in order)
+1. (agent) Add configuration binding for required environment (GitHub App ID, private key path, webhook secret, allowed org).
+2. (agent) Implement minimal HTTP endpoint `POST /webhook` with request logging and 200/401 handling.
+3. (agent) Integrate `GitHubWebhookSignatureVerifier` and reject invalid signatures early.
+4. (agent) Parse `issue_comment` events into `IssueCommentEvent` and call `IssueCommentWebhookHandler`.
+5. (human) Manual test: run locally with a tunnel, confirm `/ai start` events reach the handler.
+
+---
+
+## 🟧 Plan 11: GitHub App auth + `IGitHubClient` implementation (v0 scope)
+
+Goal: Implement minimal GitHub operations with GitHub App installation tokens.
+
+Tasks (in order)
+1. (agent) Implement JWT creation for GitHub App and installation token retrieval (cache short-lived tokens).
+2. (agent) Implement `IGitHubClient` methods used in v0: read issue, post issue comment, update Project fields, create branch, open PR.
+3. (agent) Choose API surface per Playbook: REST for issues/PRs, GraphQL for Projects v2 field updates; document in `DECISIONS.md`.
+4. (agent) Add unit tests using a fake HTTP handler; avoid real network calls.
+5. (human) Review scope against Playbook 3.4–3.5 and `ARCHITECTURE.md` boundaries.
+
+---
+
+## 🟧 Plan 12: Claiming + Project updates (real GitHub I/O)
+
+Goal: Move from stub to real Kanban updates per Playbook.
+
+Tasks (in order)
+1. (agent) Implement `TaskClaimPlanner` integration with `IGitHubClient` to set `AI=running`, status `In Progress`, and write `Run ID`.
+2. (agent) Implement idempotency checks to avoid double-claim on retried webhooks.
+3. (agent) Add tests for error handling and partial failures (e.g., missing fields).
+4. (human) Manual test: verify field updates in a test Project via webhook trigger.
+
+---
+
+## 🟧 Plan 13: Multi-repo branch + PR creation (real I/O)
+
+Goal: One branch and one PR per repo using GitHub APIs.
+
+Tasks (in order)
+1. (agent) Implement default branch discovery and branch creation per repo with naming `ai/<run-id>/<short-slug>`.
+2. (agent) Create PRs per repo with consistent titles and body (includes run metadata).
+3. (agent) Handle per-repo errors without blocking others; report partial success.
+4. (agent) Add tests for naming and payload shaping; use fakes.
+5. (human) Manual test: run against two repos, confirm PRs and branch names.
+
+---
+
+## 🟧 Plan 14: Reporting back on Issue (real I/O)
+
+Goal: Post summary, PR links, how to test, and risk notes to the tracking Issue.
+
+Tasks (in order)
+1. (agent) Wire `IssueCommentReportFormatter` to `IGitHubClient` comment posting.
+2. (agent) Include per-repo PR links and status in the comment.
+3. (agent) Add tests for formatter content and escaping.
+4. (human) Manual review: verify clarity and alignment to Playbook 3.6.
+
+---
+
+## 🟧 Plan 15: Setup, configuration, and runbooks (complete v0)
+
+Goal: Ensure local/manual setup is fully documented and operable.
+
+Tasks (in order)
+1. (agent) Expand `SETUP.md` with environment variable names, example `appsettings.Development.json`, and local run commands.
+2. (agent) Add a quick-start in `README.md` linking to setup and manual test steps.
+3. (human) Validate setup instructions end-to-end with tunnel tooling and a test GitHub App.
+4. (human) Update `ops/runbooks.md` with webhook retry handling and common failure modes.
+
+---
+
+## 🟧 Plan 16: Observability and reliability (v0 hardening)
+
+Goal: Add basic health, structured logs, and guardrails without new infra.
+
+Tasks (in order)
+1. (agent) Add `/healthz` endpoint to Host for basic liveness.
+2. (agent) Add structured logging to key stages (receive, verify, validate, claim, PR, report).
+3. (agent) Apply `ai/checklists/reliability.md` and `ai/checklists/security.md`; document any intentional exceptions.
+4. (human) Manual test: simulate invalid signatures and flaky webhook retries; confirm safe behavior.
+
+---
+
+## 🟧 Plan 17: v0 release criteria and cutover
+
+Goal: Define and meet acceptance criteria for a “functional v0”.
+
+Tasks (in order)
+1. (human) Define v0 acceptance in `ROADMAP.md`: one Issue → claim → branches → PRs → report.
+2. (agent) Ensure tests cover Critical Path; mark non-v0 tests as pending where appropriate.
+3. (human) Execute Plan 9 with real repos; record outcomes and gaps.
+4. (human) Create ADRs for any scope changes discovered.
+
+---
+
+## ⏭️ Plan 18: Post-v0 refinements (later)
+
+Goal: Capture future enhancements without expanding v0.
+
+Tasks (in order)
+1. (human) Document candidates: label triggers, `/ai plan` mode, queue/persistence, CI-fix loop.
+2. (human) Prioritize after v0 feedback; keep `DECISIONS.md` up to date.
+
+---
+
 ## 🟧 Plan 9: End-to-end manual verification (v0 MVP)
 
 Goal: Validate the v0 flow with a real GitHub issue and project.
