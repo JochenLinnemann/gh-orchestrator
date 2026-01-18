@@ -140,13 +140,16 @@ public class TaskClaimServiceTests
             return Task.CompletedTask;
         }
 
+        public Task<string> GetDefaultBranch(string repository, CancellationToken cancellationToken = default) =>
+            Task.FromResult("main");
+
         public Task CreateBranch(
             string repository,
             string newBranch,
             string baseBranch,
             CancellationToken cancellationToken = default) => Task.CompletedTask;
 
-        public Task CreatePullRequest(string repository, PullRequestRequest request, CancellationToken cancellationToken = default) =>
-            Task.CompletedTask;
+        public Task<PullRequestLink> CreatePullRequest(string repository, PullRequestRequest request, CancellationToken cancellationToken = default) =>
+            Task.FromResult(new PullRequestLink(repository, $"https://example.com/{repository}/pulls/1"));
     }
 }
