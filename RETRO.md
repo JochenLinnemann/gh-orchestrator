@@ -60,3 +60,10 @@ Notes here are not decisions, tasks, or obligations.
 - When planning manual test procedures, the checklist should verify: (a) all required dependencies/projects exist, (b) external service choices are locked in (e.g., GitHub client implementation), (c) configuration is documented. 
 - Both recent issues (missing Host, no GitHub client) were blockers discovered during execution rather than planning. Earlier validation could have surfaced these gaps.
 
+**2026-01-18 – REST API integration uncertainty**
+
+- Implemented GitHub Projects v2 REST API calls without prior verification that endpoints/response formats matched implementation assumptions.
+- Added extensive debug code (Console.WriteLine, file writes) when tests failed, but debug output didn't help diagnose the real issue (endpoint mismatch with tests).
+- Root cause: tests had brittle mocks that didn't reflect all API calls the refactored code made.
+- Lessons: (1) Verify API contract before full implementation (POC call first), (2) use structured logging not debug spew, (3) keep unit test mocks simple with clear failure messages, (4) document expected request/response formats upfront in ARCHITECTURE.md.
+
