@@ -225,8 +225,9 @@ This rule applies to the core orchestrator codebase. Tests may co-locate helper 
 
 ## Decision: GitHub API surface (REST + GraphQL) for v0
 
-**Status:** Accepted  
+**Status:** Superseded  
 **Date:** 2026-01-20  
+**Superseded by:** "Use REST API for GitHub Projects V2" (2026-01-18)  
 
 **Context**  
 The orchestrator must read/write Issues, create PRs, and update Projects v2 fields. GitHub Projects v2 APIs are only fully supported in GraphQL, while Issues and PRs are well-supported in REST.
@@ -243,6 +244,53 @@ Use:
 - ❌ Requires GraphQL parsing and error handling in the client
 
 This tradeoff is accepted for correctness and minimal scope.
+
+**Superseded by:** Investigation revealed GitHub App installation tokens cannot query ProjectV2Item nodes via GraphQL despite having Projects permissions. See "Use REST API for GitHub Projects V2" decision below.
+
+---
+
+## Decision: Use REST API for GitHub Projects V2
+
+**Status:** Accepted  
+**Date:** 2026-01-18  
+
+**Context**  
+During manual testing of Plan 12, discovered that GitHub App installation tokens cannot query `ProjectV2Item` nodes via GraphQL, even with "Read and write access to organization projects" permission granted. Specifically:
+- GraphQL query `project(number: N) { items { nodes { ... } } }` returns empty `nodes` array
+- Same query works with personal access tokens (PATs)
+- GitHub documentation is unclear about this limitation
+- All authentication, permissions, and configuration verified correct
+
+Investigation confirmed this is a scope limitation at the GitHub API level, not a code implementation issue. GraphQL ProjectV2 queries require user-level OAuth scope that GitHub App installation tokens do not have.
+
+**Decision**  
+Replace GraphQL-based Projects V2 integration with REST Projects v2 API:
+- Use `GET /projects/{project_id}/items` for listing project items
+- Use `GET /orgs/{org}/projects/{project_number}` for project metadata
+- Use `PATCH /projects/{project_id}/items/{item_id}` for field updates
+
+REST Projects v2 API explicitly documents GitHub App installation token support for organization-owned projects.
+
+**Consequences**  
+- ✅ Unblocks Plan 12 and downstream Plans 13-14
+- ✅ REST API explicitly supports GitHub Apps with proper documentation
+- ✅ Simpler error handling (HTTP status codes vs GraphQL errors)
+- ✅ Less code complexity (no GraphQL parser/builder needed)
+- ✅ Keeps existing REST client infrastructure
+- ❌ REST API is less flexible than GraphQL (but flexibility not needed for v0)
+- ❌ Requires pagination for large projects (acceptable tradeoff)
+- ❌ Previous GraphQL implementation work discarded (sunk cost)
+
+**Migration Path**  
+1. Add REST helpers to `GitHubClient.cs`: `ListProjectItemsAsync()`, `UpdateProjectItemAsync()`
+2. Replace `GetProjectTaskState()` implementation to use REST flow instead of GraphQL
+3. Keep GraphQL code for project field schema queries if needed, or replace with REST equivalents
+4. No configuration changes required (same authentication flow works for REST)
+
+**References**  
+- GitHub REST API docs: https://docs.github.com/en/rest/projects/projects
+- Limitation analysis: `GITHUB_GRAPHQL_LIMIT.md`
+- RFC: `rfc_unblocking_gh_orchestrator_project_v_2_access.md`
 
 ---
 
