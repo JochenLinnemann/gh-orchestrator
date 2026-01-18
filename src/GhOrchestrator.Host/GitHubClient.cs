@@ -59,8 +59,6 @@ public sealed class GitHubClient : IGitHubClient
         if (string.IsNullOrWhiteSpace(projectId))
             throw new ArgumentException("Project ID is required", nameof(projectId));
 
-        Console.WriteLine($"[DEBUG] GetProjectTaskState: repository={repository}, projectId={projectId}, issueNumber={issueNumber}");
-
         var metadata = await GetProjectMetadata(repository, projectId, issueNumber, cancellationToken);
         var requiredFieldNames = new[]
         {
@@ -241,53 +239,10 @@ public sealed class GitHubClient : IGitHubClient
             else
                 path += "?per_page=100";
 
-            Console.WriteLine($"[DEBUG] Calling REST API: GET {path}");
             using var request = await CreateRequest(HttpMethod.Get, repository, path, cancellationToken);
             using var response = await _httpClient.SendAsync(request, cancellationToken);
             
             var responseBody = await response.Content.ReadAsStringAsync(cancellationToken);
-            Console.WriteLine($"[DEBUG] Response status: {response.StatusCode}");
-            Console.WriteLine($"[DEBUG] Response Content-Type: {response.Content.Headers.ContentType}");
-            Console.WriteLine($"[DEBUG] Full response body length: {responseBody.Length} chars");
-            Console.WriteLine($"[DEBUG] Full response body: {responseBody}");
-            
-            // If we get 404, it might be that we need to use the node ID instead
-            if (response.StatusCode == System.Net.HttpStatusCode.NotFound && projectNodeId is null)
-            {
-                Console.WriteLine($"[DEBUG] Got 404 on {path}, trying to fetch project node ID from fields endpoint");
-                
-                // Get the node ID from the fields endpoint
-                var fieldsPath = $"orgs/{org}/projectsV2/{projectId}/fields";
-                using var fieldsRequest = await CreateRequest(HttpMethod.Get, repository, fieldsPath, cancellationToken);
-                using var fieldsResponse = await _httpClient.SendAsync(fieldsRequest, cancellationToken);
-                
-                if (fieldsResponse.IsSuccessStatusCode)
-                {
-                    var fieldsJson = await fieldsResponse.Content.ReadAsStringAsync(cancellationToken);
-                    using var fieldsDoc = JsonDocument.Parse(fieldsJson);
-                    var fieldsRoot = fieldsDoc.RootElement;
-                    
-                    if (fieldsRoot.ValueKind == JsonValueKind.Array && fieldsRoot.GetArrayLength() > 0)
-                    {
-                        var firstField = fieldsRoot[0];
-                        if (firstField.TryGetProperty("project_url", out var projectUrlElement))
-                        {
-                            var projectUrl = projectUrlElement.GetString();
-                            // Extract node ID from project_url if available
-                            if (!string.IsNullOrEmpty(projectUrl))
-                            {
-                                Console.WriteLine($"[DEBUG] Found project_url: {projectUrl}");
-                            }
-                        }
-                    }
-                }
-                
-                // Continue with 404 response to avoid infinite loop
-            }
-            
-            Console.WriteLine($"[DEBUG] Full response body: {responseBody}");
-            var bodyPreview = responseBody.Length > 500 ? responseBody.Substring(0, 500) + "..." : responseBody;
-            Console.WriteLine($"[DEBUG] Response body preview: {bodyPreview}");
             
             await EnsureSuccess(response, cancellationToken);
 
@@ -363,27 +318,10 @@ public sealed class GitHubClient : IGitHubClient
         CancellationToken cancellationToken)
     {
         var path = $"orgs/{org}/projectsV2/{projectId}/fields";
-        Console.WriteLine($"[DEBUG] Calling REST API: GET {path}");
         using var request = await CreateRequest(HttpMethod.Get, repository, path, cancellationToken);
         using var response = await _httpClient.SendAsync(request, cancellationToken);
         
         var json = await response.Content.ReadAsStringAsync(cancellationToken);
-        Console.WriteLine($"[DEBUG] Fields response status: {response.StatusCode}");
-        var bodyPreview = json.Length > 500 ? json.Substring(0, 500) + "..." : json;
-        Console.WriteLine($"[DEBUG] Fields response body: {bodyPreview}");
-        
-        // Write full fields response to file for debugging
-        try
-        {
-            var debugFile = Path.Combine(Directory.GetCurrentDirectory(), "fields_response.json");
-            await File.WriteAllTextAsync(debugFile, json, cancellationToken);
-            Console.WriteLine($"[DEBUG] Full fields response written to: {debugFile}");
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"[DEBUG] Failed to write fields response to file: {ex.Message}");
-        }
-        
         await EnsureSuccess(response, cancellationToken);
 
         using var document = JsonDocument.Parse(json);
@@ -551,11 +489,6 @@ public sealed class GitHubClient : IGitHubClient
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
         request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/vnd.github.graphql-preview+json"));
         request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/vnd.github+json"));
-        
-        var fullUrl = _httpClient.BaseAddress?.AbsoluteUri.TrimEnd('/') + "/" + path.TrimStart('/');
-        Console.WriteLine($"[DEBUG] Full request URL: {method} {fullUrl}");
-        Console.WriteLine($"[DEBUG] Token (first 20 chars): {token.Substring(0, Math.Min(20, token.Length))}...");
-        Console.WriteLine($"[DEBUG] Request Headers: Accept={string.Join(",", request.Headers.Accept.Select(h => h.MediaType))}, Auth=Bearer {token.Substring(0, 10)}...");
         
         return request;
     }
