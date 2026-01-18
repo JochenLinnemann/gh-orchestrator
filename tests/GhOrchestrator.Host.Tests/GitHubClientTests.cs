@@ -58,13 +58,11 @@ public class GitHubClientTests
     [Fact]
     public async Task UpdateProjectFields_SendsRestApiRequests()
     {
-        var callCount = 0;
         var handler = new FakeHttpMessageHandler(request =>
         {
             var path = request.RequestUri?.AbsolutePath ?? string.Empty;
-            callCount += 1;
 
-            // First call: list project items
+            // First call: list project items (page 1)
             if (path == "/orgs/octo/projectsV2/proj-1/items")
             {
                 var items = """
@@ -80,15 +78,15 @@ public class GitHubClientTests
             {
                 var fields = """
                 [
-                  { "id": "field-ai", "name": "AI", "data_type": "single_select", "options": [ { "id": "opt-running", "name": "running" } ] },
-                  { "id": "field-run", "name": "Run ID", "data_type": "text" }
+                  { "id": "1", "name": "AI", "data_type": "single_select", "options": [ { "id": "opt-1", "name": "running" } ] },
+                  { "id": "2", "name": "Run ID", "data_type": "text" }
                 ]
                 """;
                 return FakeHttpMessageHandler.Json(HttpStatusCode.OK, fields);
             }
 
             // Update calls: PATCH field values
-            if (path.StartsWith("/orgs/octo/projectsV2/items/") && request.Method.Method == "PATCH")
+            if (path.StartsWith("/orgs/octo/projectsV2/proj-1/items/") && request.Method.Method == "PATCH")
             {
                 return FakeHttpMessageHandler.Json(HttpStatusCode.OK, "{}");
             }
@@ -105,9 +103,9 @@ public class GitHubClientTests
 
         await client.UpdateProjectFields("octo/demo", "proj-1", 42, updates);
 
-        // Verify: list items, get fields, then 2 PATCH requests for field updates
-        Assert.Equal(4, handler.Requests.Count);
-        Assert.Equal(2, handler.Requests.Count(r => r.Method.Method == "PATCH"));
+        // Verify: list items, get fields, then 1 PATCH request with both field updates
+        Assert.Equal(3, handler.Requests.Count);
+        Assert.Equal(1, handler.Requests.Count(r => r.Method.Method == "PATCH"));
     }
 
     [Fact]
@@ -121,7 +119,7 @@ public class GitHubClientTests
             callCount += 1;
 
             // First call: list items page 1 (no match)
-            if (path == "/orgs/octo/projectsV2/proj-1/items" && (string.IsNullOrEmpty(query) || !query.Contains("&page=") && !query.Contains("?page=") && !query.StartsWith("page=")))
+            if (path == "/orgs/octo/projectsV2/proj-1/items" && !query.Contains("page=2"))
             {
                 var page1 = """
                 [
@@ -129,7 +127,7 @@ public class GitHubClientTests
                 ]
                 """;
                 var response = FakeHttpMessageHandler.Json(HttpStatusCode.OK, page1);
-                response.Headers.Add("Link", "<https://api.github.com/orgs/octo/projectsV2/proj-1/items?page=2>; rel=\"next\"");
+                response.Headers.Add("Link", "<https://api.github.com/orgs/octo/projectsV2/proj-1/items?per_page=100&page=2>; rel=\"next\"");
                 return response;
             }
 
@@ -138,7 +136,7 @@ public class GitHubClientTests
             {
                 var fields = """
                 [
-                  { "id": "field-ai", "name": "AI", "data_type": "single_select", "options": [ { "id": "opt-running", "name": "running" } ] }
+                  { "id": "1", "name": "AI", "data_type": "single_select", "options": [ { "id": "opt-1", "name": "running" } ] }
                 ]
                 """;
                 return FakeHttpMessageHandler.Json(HttpStatusCode.OK, fields);
@@ -156,7 +154,7 @@ public class GitHubClientTests
             }
 
             // PATCH field value
-            if (path.StartsWith("/orgs/octo/projectsV2/items/") && request.Method.Method == "PATCH")
+            if (path.StartsWith("/orgs/octo/projectsV2/proj-1/items/") && request.Method.Method == "PATCH")
             {
                 return FakeHttpMessageHandler.Json(HttpStatusCode.OK, "{}");
             }
