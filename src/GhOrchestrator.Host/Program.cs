@@ -72,7 +72,7 @@ app.MapPost("/webhook", async (HttpRequest request) =>
         if (!IsAllowedOrg(@event.Repository, hostConfiguration.AllowedOrg))
         {
             app.Logger.LogWarning("Rejected webhook for unauthorized org: {Repository}", @event.Repository);
-            return Results.Forbid();
+            return Results.StatusCode(403);
         }
 
         app.Logger.LogInformation("Parsed event: repo={Repo}, issue={Issue}, author={Author}, body={Body}", @event.Repository, @event.IssueNumber, @event.CommentAuthor, @event.CommentBody);

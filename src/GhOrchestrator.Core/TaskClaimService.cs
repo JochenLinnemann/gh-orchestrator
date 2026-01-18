@@ -18,9 +18,9 @@ public sealed class TaskClaimService
         {
             snapshot = await gitHubClient.GetProjectTaskState(repository, projectId, issueNumber, cancellationToken);
         }
-        catch (Exception)
+        catch (Exception ex)
         {
-            return TaskClaimResult.Failure("Failed to read project task state.");
+            return TaskClaimResult.Failure($"Failed to read project task state: {ex.Message}");
         }
 
         if (snapshot.MissingFields.Count > 0)

@@ -60,6 +60,8 @@ public sealed class GitHubClient : IGitHubClient
         if (string.IsNullOrWhiteSpace(projectId))
             throw new ArgumentException("Project ID is required", nameof(projectId));
 
+        Console.WriteLine($"[DEBUG] GetProjectTaskState: repository={repository}, projectId={projectId}, issueNumber={issueNumber}");
+
         var metadata = await GetProjectMetadata(repository, projectId, issueNumber, cancellationToken);
         var requiredFieldNames = new[]
         {
@@ -383,13 +385,18 @@ public sealed class GitHubClient : IGitHubClient
     private async Task<JsonDocument> SendGraphQl(string repository, object payload, CancellationToken cancellationToken)
     {
         var json = JsonSerializer.Serialize(payload);
+        Console.WriteLine($"[DEBUG] GraphQL request: {json}");
+        
         using var request = await CreateRequest(HttpMethod.Post, repository, GraphQlEndpoint, cancellationToken);
         request.Content = new StringContent(json, Encoding.UTF8, "application/json");
 
         using var response = await _httpClient.SendAsync(request, cancellationToken);
         await EnsureSuccess(response, cancellationToken);
 
-        var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync(cancellationToken));
+        var responseBody = await response.Content.ReadAsStringAsync(cancellationToken);
+        Console.WriteLine($"[DEBUG] GraphQL response: {responseBody}");
+        
+        var document = JsonDocument.Parse(responseBody);
         if (document.RootElement.TryGetProperty("errors", out var errors) && errors.ValueKind == JsonValueKind.Array && errors.GetArrayLength() > 0)
             throw new InvalidOperationException($"GraphQL request failed: {errors}");
 
@@ -456,9 +463,13 @@ query($projectId: ID!, $itemsAfter: String) {
       fields(first: 100) {
         nodes {
           __typename
-          id
-          name
+          ... on ProjectV2Field {
+            id
+            name
+          }
           ... on ProjectV2SingleSelectField {
+            id
+            name
             options {
               id
               name

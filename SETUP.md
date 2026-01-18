@@ -42,7 +42,7 @@ GH Orchestrator integrates with GitHub via webhooks and authenticated API access
 ### Authentication model
 
 - A **GitHub App** is the preferred authentication mechanism
-- The app should be installed only on the repositories it needs to access
+- The app should be installed only on the organizations (and their repositories) it needs to access
 - Permissions must follow the principle of least privilege
 
 No personal access tokens should be required for normal operation.
@@ -50,6 +50,30 @@ No personal access tokens should be required for normal operation.
 > **Important:**  
 > Do not commit credentials, private keys, or tokens to this repository.
 > Secret handling is intentionally left to the deployment environment.
+
+### Projects V2 requirement
+
+GH Orchestrator uses **GitHub Projects V2** to track task state.
+- The project **must** be created under an **organization**, not a personal account
+  - Personal projects (`https://github.com/users/USERNAME/projects/N`) are not accessible to GitHub Apps
+  - Org projects (`https://github.com/orgs/ORGNAME/projects/N`) are accessible
+- Your GitHub App must have **Projects** permission set to at least **Read** (or **Read & write** to modify fields)
+  - Check this in your app's **Permissions and events** settings
+  - Both **Repository permissions** and **Organization permissions** should include Projects
+
+### Critical: Same organization requirement
+
+The **repository**, **project**, and **GitHub App installation** must all be in the **same organization**.
+
+For example:
+- ✅ **CORRECT**: App installed on `ExampleOrganization` org, repo `ExampleOrganization/orchestrator`, project in `ExampleOrganization` org
+- ❌ **BROKEN**: App installed on `ExampleOrganization` org, repo `ExampleUser/orchestrator` (personal), project in `ExampleOrganization` org
+  - The app cannot authenticate to personal repos, so webhooks will fail
+
+**Before testing:**
+1. Ensure your test repository is in the organization (not a personal fork)
+2. Ensure the project is in the same organization
+3. Ensure the app is installed on that organization (not just a personal account)
 
 ---
 
@@ -85,11 +109,22 @@ No secrets should be committed to this repository.
 4. Subscribe to the **Issue comment** webhook event.
 5. Set **Permissions** to the minimum needed:
    - **Issues**: Read-only (needed to receive issue comment events)
+   - **Projects**: Read & write (needed to update task state in your Projects V2 board)
    - **Metadata**: Read-only (required for all GitHub Apps)
-6. Save the app and **install it** on the test repository only.
+6. Save the app and **install it on your organization** (not personal account or specific repository).
 
-> If you need to post comments or update state later, increase permissions intentionally
-> and document the reason.
+> **Important:** The app must be installed at the organization level for it to access org projects.
+
+---
+
+### 2) Create a test repository and project in the same organization
+
+1. In your organization, **create or transfer** a test repository
+   - Do not use a personal fork—it must be under the org
+2. Create a **Projects V2** board in the same organization
+3. Add your test repo's issues to the board (or create test issues in the org)
+
+> If you use a personal repo or project, the app will not have access and authentication will fail.
 
 ### 2) Expose a local webhook receiver
 
@@ -107,14 +142,39 @@ Use the generated HTTPS URL as the GitHub App webhook URL.
 The core config loader expects these variables:
 
 - `GH_APP_ID` — GitHub App ID (integer)
-- `GH_APP_PRIVATE_KEY` — GitHub App private key (PEM contents)
+- `GH_APP_PRIVATE_KEY_PATH` — Path to GitHub App private key file (PEM format)
+  - Alternative: `GH_APP_PRIVATE_KEY` — Raw PEM contents (less recommended; avoid in scripts)
 - `GH_WEBHOOK_SECRET` — Webhook secret configured in the GitHub App
+- `GH_ALLOWED_ORG` — Organization name where the app is installed (authorization check)
+- `GH_PROJECT_ID` — GitHub Projects V2 node ID (see below for how to find it)
 
-Example (do not commit):
+#### Finding your Project V2 node ID
+
+GitHub Projects V2 uses global node IDs, not the numeric project number in the URL.
+
+**Using GitHub CLI (recommended):**
+```powershell
+$login = "ExampleOrganization"  # Your organization name
+$number = 1                      # The numeric project number from the URL
+
+gh api graphql `
+  -f query='query ($login: String!, $number: Int!) { organization(login: $login) { projectV2(number: $number) { id title } } }' `
+  -f login="$login" `
+  -F number=$number
+```
+
+The returned `id` value (looks like `PVT_...`) is what you set in `GH_PROJECT_ID`.
+
+**Ensure your GitHub CLI token has `project` scope** (run `gh auth status` to verify).
+
+#### Example environment variables (do not commit):
+
 ```bash
 export GH_APP_ID="123456"
-export GH_APP_PRIVATE_KEY="$(cat /path/to/your/private-key.pem)"
+export GH_APP_PRIVATE_KEY_PATH="$HOME/.ssh/gh-app-key.pem"
 export GH_WEBHOOK_SECRET="your-webhook-secret"
+export GH_ALLOWED_ORG="ExampleOrganization"
+export GH_PROJECT_ID="PVT_kwDOA..."
 ```
 
 ### 4) Run the orchestrator locally
@@ -125,16 +185,20 @@ Start your local webhook receiver (implementation-specific) and ensure it:
 2. Extracts the raw request body and the `X-Hub-Signature-256` header.
 3. Calls the core handler with `(payload, signatureHeader, GH_WEBHOOK_SECRET)`.
 
-```
-cd src/GhOrchestrator.Core
+```powershell
+cd src/GhOrchestrator.Host
 dotnet run
 ```
 
+The app will start listening on `http://localhost:5000`. Your tunnel (ngrok, etc.) should forward to this port.
+
 ### 5) Trigger `/ai start`
 
-1. Create or use a test issue in the installed repo.
-2. Comment `/ai start` on the issue.
-3. Confirm the receiver logs the parsed event data and signature validation status.
+1. Create or use a test issue in the organization repository (not a personal fork).
+2. Ensure the issue is added to your organization's Projects V2 board.
+3. Comment `/ai start` on the issue.
+4. Confirm the receiver logs the parsed event data and signature validation status.
+5. Check the app logs for successful project field updates (Status, AI=running, Run ID).
 
 ---
 
