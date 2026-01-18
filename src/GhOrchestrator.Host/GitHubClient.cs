@@ -90,6 +90,21 @@ public sealed class GitHubClient : IGitHubClient
         }
     }
 
+    public async Task<string> GetDefaultBranch(string repository, CancellationToken cancellationToken = default)
+    {
+        using var request = await CreateRequest(HttpMethod.Get, repository, $"repos/{repository}", cancellationToken);
+        using var response = await _httpClient.SendAsync(request, cancellationToken);
+        await EnsureSuccess(response, cancellationToken);
+
+        using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync(cancellationToken));
+        var branch = document.RootElement.GetProperty("default_branch").GetString();
+
+        if (string.IsNullOrWhiteSpace(branch))
+            throw new InvalidOperationException("Default branch not found");
+
+        return branch;
+    }
+
     public async Task CreateBranch(
         string repository,
         string newBranch,
@@ -111,7 +126,10 @@ public sealed class GitHubClient : IGitHubClient
         await EnsureSuccess(response, cancellationToken);
     }
 
-    public async Task CreatePullRequest(string repository, PullRequestRequest request, CancellationToken cancellationToken = default)
+    public async Task<PullRequestLink> CreatePullRequest(
+        string repository,
+        PullRequestRequest request,
+        CancellationToken cancellationToken = default)
     {
         if (request is null)
             throw new ArgumentNullException(nameof(request));
@@ -129,6 +147,15 @@ public sealed class GitHubClient : IGitHubClient
 
         using var response = await _httpClient.SendAsync(message, cancellationToken);
         await EnsureSuccess(response, cancellationToken);
+
+        using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync(cancellationToken));
+        var url = document.RootElement.TryGetProperty("html_url", out var urlElement)
+            ? urlElement.GetString()
+            : null;
+        if (string.IsNullOrWhiteSpace(url))
+            throw new InvalidOperationException("Pull request URL not returned");
+
+        return new PullRequestLink(repository, url);
     }
 
     private async Task<ProjectMetadata> GetProjectMetadata(
