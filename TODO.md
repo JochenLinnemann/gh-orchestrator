@@ -139,7 +139,7 @@ Tasks (in order)
 
 ---
 
-## 🟧 Plan 12: Claiming + Project updates (real GitHub I/O)
+## ✅ Plan 12: Claiming + Project updates (real GitHub I/O)
 
 Goal: Move from stub to real Kanban updates per Playbook.
 

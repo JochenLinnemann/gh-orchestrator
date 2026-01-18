@@ -51,6 +51,37 @@ public sealed class GitHubClient : IGitHubClient
         await EnsureSuccess(response, cancellationToken);
     }
 
+    public async Task<ProjectTaskStateSnapshot> GetProjectTaskState(
+        string repository,
+        string projectId,
+        int issueNumber,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(projectId))
+            throw new ArgumentException("Project ID is required", nameof(projectId));
+
+        var metadata = await GetProjectMetadata(repository, projectId, issueNumber, cancellationToken);
+        var requiredFieldNames = new[]
+        {
+            ProjectFieldNames.Ai,
+            ProjectFieldNames.Status,
+            ProjectFieldNames.RunId
+        };
+
+        var missingFields = requiredFieldNames
+            .Where(required => metadata.Fields.All(field => !string.Equals(field.Name, required, StringComparison.OrdinalIgnoreCase)))
+            .ToArray();
+
+        var fieldValues = await GetProjectItemFieldValues(repository, metadata.ItemId, cancellationToken);
+
+        fieldValues.TryGetValue(ProjectFieldNames.Ai, out var aiStatus);
+        fieldValues.TryGetValue(ProjectFieldNames.Status, out var status);
+        fieldValues.TryGetValue(ProjectFieldNames.RunId, out var runId);
+
+        var state = new ProjectTaskState(aiStatus, status, runId);
+        return new ProjectTaskStateSnapshot(state, missingFields);
+    }
+
     public async Task UpdateProjectFields(
         string repository,
         string projectId,
@@ -170,6 +201,27 @@ public sealed class GitHubClient : IGitHubClient
         throw new InvalidOperationException($"Project item for issue {issueNumber} not found");
     }
 
+    private async Task<Dictionary<string, string?>> GetProjectItemFieldValues(
+        string repository,
+        string itemId,
+        CancellationToken cancellationToken)
+    {
+        var request = new
+        {
+            query = ProjectItemFieldValuesQuery,
+            variables = new { itemId }
+        };
+
+        using var response = await SendGraphQl(repository, request, cancellationToken);
+        if (!response.RootElement.TryGetProperty("data", out var dataElement))
+            throw new InvalidOperationException("GraphQL response missing data");
+
+        if (!dataElement.TryGetProperty("node", out var nodeElement))
+            throw new InvalidOperationException("GraphQL response missing project item node");
+
+        return ParseFieldValues(nodeElement);
+    }
+
     private static List<ProjectField> ParseFields(JsonElement nodeElement)
     {
         if (!nodeElement.TryGetProperty("fields", out var fieldsElement))
@@ -190,6 +242,39 @@ public sealed class GitHubClient : IGitHubClient
         }
 
         return fields;
+    }
+
+    private static Dictionary<string, string?> ParseFieldValues(JsonElement nodeElement)
+    {
+        if (!nodeElement.TryGetProperty("fieldValues", out var valuesElement))
+            throw new InvalidOperationException("Project item field values not found");
+
+        if (!valuesElement.TryGetProperty("nodes", out var nodesElement))
+            throw new InvalidOperationException("Project item field value nodes not found");
+
+        var values = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase);
+        foreach (var valueElement in nodesElement.EnumerateArray())
+        {
+            if (!valueElement.TryGetProperty("field", out var fieldElement))
+                continue;
+
+            if (!fieldElement.TryGetProperty("name", out var fieldNameElement))
+                continue;
+
+            var fieldName = fieldNameElement.GetString();
+            if (string.IsNullOrWhiteSpace(fieldName))
+                continue;
+
+            string? value = null;
+            if (valueElement.TryGetProperty("text", out var textElement))
+                value = textElement.GetString();
+            else if (valueElement.TryGetProperty("name", out var nameElement))
+                value = nameElement.GetString();
+
+            values[fieldName] = value;
+        }
+
+        return values;
     }
 
     private static List<ProjectFieldOption> ParseOptions(JsonElement fieldNode)
@@ -380,6 +465,35 @@ mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $value: ProjectV2FieldVal
   ) {
     projectV2Item {
       id
+    }
+  }
+}
+";
+
+    private const string ProjectItemFieldValuesQuery = @"
+query($itemId: ID!) {
+  node(id: $itemId) {
+    ... on ProjectV2Item {
+      fieldValues(first: 100) {
+        nodes {
+          ... on ProjectV2ItemFieldTextValue {
+            text
+            field {
+              ... on ProjectV2FieldCommon {
+                name
+              }
+            }
+          }
+          ... on ProjectV2ItemFieldSingleSelectValue {
+            name
+            field {
+              ... on ProjectV2FieldCommon {
+                name
+              }
+            }
+          }
+        }
+      }
     }
   }
 }

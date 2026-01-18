@@ -296,6 +296,13 @@ Constraints: none
         public Task AddIssueComment(string repository, int issueNumber, string body, CancellationToken cancellationToken = default) =>
             Task.CompletedTask;
 
+        public Task<ProjectTaskStateSnapshot> GetProjectTaskState(
+            string repository,
+            string projectId,
+            int issueNumber,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult(new ProjectTaskStateSnapshot(new ProjectTaskState(null, null, null), Array.Empty<string>()));
+
         public Task UpdateProjectFields(
             string repository,
             string projectId,
