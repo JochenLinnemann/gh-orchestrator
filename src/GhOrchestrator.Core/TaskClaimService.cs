@@ -40,9 +40,9 @@ public sealed class TaskClaimService
         {
             await gitHubClient.UpdateProjectFields(repository, projectId, issueNumber, plan.Updates, cancellationToken);
         }
-        catch (Exception)
+        catch (Exception ex)
         {
-            return TaskClaimResult.Failure("Failed to update project fields.");
+            return TaskClaimResult.Failure($"Failed to update project fields: {ex.Message}");
         }
 
         return plan;

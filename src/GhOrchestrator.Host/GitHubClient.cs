@@ -73,7 +73,7 @@ public sealed class GitHubClient : IGitHubClient
             .Where(required => metadata.Fields.All(field => !string.Equals(field.Name, required, StringComparison.OrdinalIgnoreCase)))
             .ToArray();
 
-        var fieldValues = await GetProjectItemFieldValues(repository, metadata.ItemId, cancellationToken);
+        var fieldValues = await GetProjectItemFieldValues(repository, projectId, metadata.ItemId, cancellationToken);
 
         fieldValues.TryGetValue(ProjectFieldNames.Ai, out var aiStatus);
         fieldValues.TryGetValue(ProjectFieldNames.Status, out var status);
@@ -99,23 +99,21 @@ public sealed class GitHubClient : IGitHubClient
 
         var metadata = await GetProjectMetadata(repository, projectId, issueNumber, cancellationToken);
 
+        // Collect all field updates into a single request body
+        var fieldsToUpdate = new List<object>();
+
         foreach (var update in updates)
         {
             var field = metadata.Fields.FirstOrDefault(field => string.Equals(field.Name, update.FieldName, StringComparison.OrdinalIgnoreCase));
             if (field is null)
                 throw new InvalidOperationException($"Project field not found: {update.FieldName}");
 
-            // REST API: update project item field
-            var org = repository.Split('/')[0];
-            var path = $"orgs/{org}/projectsV2/items/{metadata.ItemId}/fields/{field.Id}";
-            using var request = await CreateRequest(new HttpMethod("PATCH"), repository, path, cancellationToken);
-
-            // Build field value payload based on field type
-            object payload;
+            // Build field value based on field type
+            object fieldValue;
             if (field.Options.Count == 0)
             {
                 // Text field
-                payload = new { text = update.Value };
+                fieldValue = update.Value;
             }
             else
             {
@@ -125,15 +123,32 @@ public sealed class GitHubClient : IGitHubClient
                 if (option is null)
                     throw new InvalidOperationException($"Project field option not found for {field.Name}: {update.Value}");
 
-                payload = new { option_id = option.Id };
+                fieldValue = option.Id;
             }
 
-            var json = JsonSerializer.Serialize(payload);
-            request.Content = new StringContent(json, Encoding.UTF8, "application/json");
-
-            using var response = await _httpClient.SendAsync(request, cancellationToken);
-            await EnsureSuccess(response, cancellationToken);
+            // Convert field ID to integer for API
+            if (int.TryParse(field.Id, out var fieldIdInt))
+            {
+                fieldsToUpdate.Add(new { id = fieldIdInt, value = fieldValue });
+            }
+            else
+            {
+                // If not parseable as int, keep as string (shouldn't happen but just in case)
+                fieldsToUpdate.Add(new { id = field.Id, value = fieldValue });
+            }
         }
+
+        // Send single PATCH request to update all fields at once
+        var org = repository.Split('/')[0];
+        var path = $"orgs/{org}/projectsV2/{projectId}/items/{metadata.ItemId}";
+        using var request = await CreateRequest(new HttpMethod("PATCH"), repository, path, cancellationToken);
+
+        var payload = new { fields = fieldsToUpdate };
+        var json = JsonSerializer.Serialize(payload);
+        request.Content = new StringContent(json, Encoding.UTF8, "application/json");
+
+        using var response = await _httpClient.SendAsync(request, cancellationToken);
+        await EnsureSuccess(response, cancellationToken);
     }
 
     public async Task<string> GetDefaultBranch(string repository, CancellationToken cancellationToken = default)
@@ -290,11 +305,24 @@ public sealed class GitHubClient : IGitHubClient
             {
                 foreach (var itemElement in root.EnumerateArray())
                 {
-                    // Get node_id (not id, which is numeric)
-                    if (!itemElement.TryGetProperty("node_id", out var nodeIdElement))
-                        continue;
-                    
-                    var itemId = nodeIdElement.GetString();
+                    // Prefer numeric item id; fall back to node_id
+                    string? itemId = null;
+                    string? itemNodeId = null;
+
+                    if (itemElement.TryGetProperty("id", out var idElement))
+                    {
+                        itemId = idElement.ValueKind switch
+                        {
+                            JsonValueKind.Number => idElement.GetInt64().ToString(),
+                            JsonValueKind.String => idElement.GetString(),
+                            _ => null
+                        };
+                    }
+
+                    if (itemElement.TryGetProperty("node_id", out var nodeIdElement))
+                        itemNodeId = nodeIdElement.GetString();
+
+                    itemId ??= itemNodeId;
                     if (string.IsNullOrWhiteSpace(itemId))
                         continue;
 
@@ -305,7 +333,7 @@ public sealed class GitHubClient : IGitHubClient
                         contentElement.TryGetProperty("number", out var numberElement) &&
                         numberElement.GetInt32() == issueNumber)
                     {
-                        return new ProjectMetadata(itemId, fields);
+                        return new ProjectMetadata(itemId, itemNodeId, fields);
                     }
                 }
             }
@@ -343,6 +371,18 @@ public sealed class GitHubClient : IGitHubClient
         Console.WriteLine($"[DEBUG] Fields response status: {response.StatusCode}");
         var bodyPreview = json.Length > 500 ? json.Substring(0, 500) + "..." : json;
         Console.WriteLine($"[DEBUG] Fields response body: {bodyPreview}");
+        
+        // Write full fields response to file for debugging
+        try
+        {
+            var debugFile = Path.Combine(Directory.GetCurrentDirectory(), "fields_response.json");
+            await File.WriteAllTextAsync(debugFile, json, cancellationToken);
+            Console.WriteLine($"[DEBUG] Full fields response written to: {debugFile}");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[DEBUG] Failed to write fields response to file: {ex.Message}");
+        }
         
         await EnsureSuccess(response, cancellationToken);
 
@@ -399,10 +439,19 @@ public sealed class GitHubClient : IGitHubClient
                             }
                             else if (nameProp.ValueKind == JsonValueKind.Object)
                             {
-                                // Name might be nested in an object - try to extract text field
-                                optionName = nameProp.TryGetProperty("text", out var textProp)
-                                    ? textProp.GetString() ?? string.Empty
-                                    : optionId; // Fallback to ID
+                                // Name might be nested in an object - try to extract raw or text field
+                                if (nameProp.TryGetProperty("raw", out var rawProp))
+                                {
+                                    optionName = rawProp.GetString() ?? string.Empty;
+                                }
+                                else if (nameProp.TryGetProperty("text", out var textProp))
+                                {
+                                    optionName = textProp.GetString() ?? string.Empty;
+                                }
+                                else
+                                {
+                                    optionName = optionId; // Fallback to ID
+                                }
                             }
                             else
                             {
@@ -435,11 +484,13 @@ public sealed class GitHubClient : IGitHubClient
 
     private async Task<Dictionary<string, string?>> GetProjectItemFieldValues(
         string repository,
+        string projectId,
         string itemId,
         CancellationToken cancellationToken)
     {
         // REST API: get specific project item
-        var path = $"projects/items/{itemId}";
+        var org = repository.Split('/')[0];
+        var path = $"orgs/{org}/projectsV2/{projectId}/items/{itemId}";
         using var request = await CreateRequest(HttpMethod.Get, repository, path, cancellationToken);
         using var response = await _httpClient.SendAsync(request, cancellationToken);
         await EnsureSuccess(response, cancellationToken);
@@ -498,6 +549,7 @@ public sealed class GitHubClient : IGitHubClient
         var token = await _tokenProvider.GetInstallationToken(repository, cancellationToken);
         var request = new HttpRequestMessage(method, path);
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/vnd.github.graphql-preview+json"));
         request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/vnd.github+json"));
         
         var fullUrl = _httpClient.BaseAddress?.AbsoluteUri.TrimEnd('/') + "/" + path.TrimStart('/');
@@ -523,7 +575,7 @@ public sealed class GitHubClient : IGitHubClient
         throw new HttpRequestException($"GitHub API request failed: {(int)response.StatusCode} {response.ReasonPhrase}. {body}");
     }
 
-    private sealed record ProjectMetadata(string ItemId, List<ProjectField> Fields);
+    private sealed record ProjectMetadata(string ItemId, string? ItemNodeId, List<ProjectField> Fields);
 
     private sealed record ProjectField(string Id, string Name, string? TypeName, List<ProjectFieldOption> Options);
 
