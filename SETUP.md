@@ -146,26 +146,17 @@ The core config loader expects these variables:
   - Alternative: `GH_APP_PRIVATE_KEY` — Raw PEM contents (less recommended; avoid in scripts)
 - `GH_WEBHOOK_SECRET` — Webhook secret configured in the GitHub App
 - `GH_ALLOWED_ORG` — Organization name where the app is installed (authorization check)
-- `GH_PROJECT_ID` — GitHub Projects V2 node ID (see below for how to find it)
+- `GH_PROJECT_ID` — GitHub Projects V2 **project number** from the URL (e.g., `1` from `github.com/orgs/myorg/projects/1`)
 
-#### Finding your Project V2 node ID
+#### Finding your Project V2 project number
 
-GitHub Projects V2 uses global node IDs, not the numeric project number in the URL.
+The project number is the numeric value in your project's URL:
+- URL: `https://github.com/orgs/jlits/projects/1` → project number is `1`
+- URL: `https://github.com/orgs/mycompany/projects/42` → project number is `42`
 
-**Using GitHub CLI (recommended):**
-```powershell
-$login = "ExampleOrganization"  # Your organization name
-$number = 1                      # The numeric project number from the URL
+Set `GH_PROJECT_ID` to this number (as a string).
 
-gh api graphql `
-  -f query='query ($login: String!, $number: Int!) { organization(login: $login) { projectV2(number: $number) { id title } } }' `
-  -f login="$login" `
-  -F number=$number
-```
-
-The returned `id` value (looks like `PVT_...`) is what you set in `GH_PROJECT_ID`.
-
-**Ensure your GitHub CLI token has `project` scope** (run `gh auth status` to verify).
+**Note:** This is different from the global node ID (like `PVT_...`). The REST API uses the project number.
 
 #### Example environment variables (do not commit):
 
@@ -174,7 +165,7 @@ export GH_APP_ID="123456"
 export GH_APP_PRIVATE_KEY_PATH="$HOME/.ssh/gh-app-key.pem"
 export GH_WEBHOOK_SECRET="your-webhook-secret"
 export GH_ALLOWED_ORG="ExampleOrganization"
-export GH_PROJECT_ID="PVT_kwDOA..."
+export GH_PROJECT_ID="1"  # Project number from URL, not node ID
 ```
 
 ### 4) Run the orchestrator locally

@@ -7,7 +7,6 @@ namespace GhOrchestrator.Host;
 
 public sealed class GitHubClient : IGitHubClient
 {
-    private const string GraphQlEndpoint = "graphql";
     private readonly HttpClient _httpClient;
     private readonly IGitHubInstallationTokenProvider _tokenProvider;
 
@@ -106,20 +105,34 @@ public sealed class GitHubClient : IGitHubClient
             if (field is null)
                 throw new InvalidOperationException($"Project field not found: {update.FieldName}");
 
-            var value = field.BuildValue(update.Value);
-            var mutationRequest = new
-            {
-                query = ProjectFieldMutation,
-                variables = new
-                {
-                    projectId,
-                    itemId = metadata.ItemId,
-                    fieldId = field.Id,
-                    value
-                }
-            };
+            // REST API: update project item field
+            var org = repository.Split('/')[0];
+            var path = $"orgs/{org}/projectsV2/items/{metadata.ItemId}/fields/{field.Id}";
+            using var request = await CreateRequest(new HttpMethod("PATCH"), repository, path, cancellationToken);
 
-            using var mutationResponse = await SendGraphQl(repository, mutationRequest, cancellationToken);
+            // Build field value payload based on field type
+            object payload;
+            if (field.Options.Count == 0)
+            {
+                // Text field
+                payload = new { text = update.Value };
+            }
+            else
+            {
+                // Single select field - find option ID
+                var option = field.Options.FirstOrDefault(opt =>
+                    string.Equals(opt.Name, update.Value, StringComparison.OrdinalIgnoreCase));
+                if (option is null)
+                    throw new InvalidOperationException($"Project field option not found for {field.Name}: {update.Value}");
+
+                payload = new { option_id = option.Id };
+            }
+
+            var json = JsonSerializer.Serialize(payload);
+            request.Content = new StringContent(json, Encoding.UTF8, "application/json");
+
+            using var response = await _httpClient.SendAsync(request, cancellationToken);
+            await EnsureSuccess(response, cancellationToken);
         }
     }
 
@@ -197,37 +210,227 @@ public sealed class GitHubClient : IGitHubClient
         int issueNumber,
         CancellationToken cancellationToken)
     {
+        // REST API approach: list project items and find the one matching our issue
+        // projectId is expected to be the project number (e.g., "1" from the URL)
+        var org = repository.Split('/')[0];
         string? cursor = null;
         List<ProjectField>? fields = null;
+        string? projectNodeId = null;
 
         while (true)
         {
-            var request = new
+            // GitHub's REST API for projects v2 items
+            var path = $"orgs/{org}/projectsV2/{projectId}/items";
+            if (cursor is not null)
+                path += $"?per_page=100&page={cursor}";
+            else
+                path += "?per_page=100";
+
+            Console.WriteLine($"[DEBUG] Calling REST API: GET {path}");
+            using var request = await CreateRequest(HttpMethod.Get, repository, path, cancellationToken);
+            using var response = await _httpClient.SendAsync(request, cancellationToken);
+            
+            var responseBody = await response.Content.ReadAsStringAsync(cancellationToken);
+            Console.WriteLine($"[DEBUG] Response status: {response.StatusCode}");
+            Console.WriteLine($"[DEBUG] Response Content-Type: {response.Content.Headers.ContentType}");
+            Console.WriteLine($"[DEBUG] Full response body length: {responseBody.Length} chars");
+            Console.WriteLine($"[DEBUG] Full response body: {responseBody}");
+            
+            // If we get 404, it might be that we need to use the node ID instead
+            if (response.StatusCode == System.Net.HttpStatusCode.NotFound && projectNodeId is null)
             {
-                query = ProjectMetadataQuery,
-                variables = new { projectId, itemsAfter = cursor }
-            };
+                Console.WriteLine($"[DEBUG] Got 404 on {path}, trying to fetch project node ID from fields endpoint");
+                
+                // Get the node ID from the fields endpoint
+                var fieldsPath = $"orgs/{org}/projectsV2/{projectId}/fields";
+                using var fieldsRequest = await CreateRequest(HttpMethod.Get, repository, fieldsPath, cancellationToken);
+                using var fieldsResponse = await _httpClient.SendAsync(fieldsRequest, cancellationToken);
+                
+                if (fieldsResponse.IsSuccessStatusCode)
+                {
+                    var fieldsJson = await fieldsResponse.Content.ReadAsStringAsync(cancellationToken);
+                    using var fieldsDoc = JsonDocument.Parse(fieldsJson);
+                    var fieldsRoot = fieldsDoc.RootElement;
+                    
+                    if (fieldsRoot.ValueKind == JsonValueKind.Array && fieldsRoot.GetArrayLength() > 0)
+                    {
+                        var firstField = fieldsRoot[0];
+                        if (firstField.TryGetProperty("project_url", out var projectUrlElement))
+                        {
+                            var projectUrl = projectUrlElement.GetString();
+                            // Extract node ID from project_url if available
+                            if (!string.IsNullOrEmpty(projectUrl))
+                            {
+                                Console.WriteLine($"[DEBUG] Found project_url: {projectUrl}");
+                            }
+                        }
+                    }
+                }
+                
+                // Continue with 404 response to avoid infinite loop
+            }
+            
+            Console.WriteLine($"[DEBUG] Full response body: {responseBody}");
+            var bodyPreview = responseBody.Length > 500 ? responseBody.Substring(0, 500) + "..." : responseBody;
+            Console.WriteLine($"[DEBUG] Response body preview: {bodyPreview}");
+            
+            await EnsureSuccess(response, cancellationToken);
 
-            using var response = await SendGraphQl(repository, request, cancellationToken);
-            if (!response.RootElement.TryGetProperty("data", out var dataElement))
-                throw new InvalidOperationException("GraphQL response missing data");
+            using var document = JsonDocument.Parse(responseBody);
+            var root = document.RootElement;
 
-            if (!dataElement.TryGetProperty("node", out var nodeElement))
-                throw new InvalidOperationException("GraphQL response missing project node");
+            // Parse fields from first page only
+            if (fields is null)
+            {
+                fields = await GetProjectFields(repository, org, projectId, cancellationToken);
+            }
 
-            fields ??= ParseFields(nodeElement);
-            var page = ParseItems(nodeElement);
-            var itemId = TryFindProjectItemId(page.Items, issueNumber);
-            if (itemId is not null)
-                return new ProjectMetadata(itemId, fields);
+            // REST API returns array of items directly
+            if (root.ValueKind == JsonValueKind.Array)
+            {
+                foreach (var itemElement in root.EnumerateArray())
+                {
+                    // Get node_id (not id, which is numeric)
+                    if (!itemElement.TryGetProperty("node_id", out var nodeIdElement))
+                        continue;
+                    
+                    var itemId = nodeIdElement.GetString();
+                    if (string.IsNullOrWhiteSpace(itemId))
+                        continue;
 
-            if (!page.PageInfo.HasNextPage)
-                break;
+                    // Check if this item's content is our issue
+                    if (itemElement.TryGetProperty("content_type", out var typeElement) &&
+                        typeElement.GetString() == "Issue" &&
+                        itemElement.TryGetProperty("content", out var contentElement) &&
+                        contentElement.TryGetProperty("number", out var numberElement) &&
+                        numberElement.GetInt32() == issueNumber)
+                    {
+                        return new ProjectMetadata(itemId, fields);
+                    }
+                }
+            }
 
-            cursor = page.PageInfo.EndCursor;
+            // Check for pagination
+            if (response.Headers.TryGetValues("Link", out var linkValues))
+            {
+                var linkHeader = linkValues.FirstOrDefault();
+                if (linkHeader?.Contains("rel=\"next\"") == true)
+                {
+                    // Simple pagination increment
+                    cursor = cursor is null ? "2" : (int.Parse(cursor) + 1).ToString();
+                    continue;
+                }
+            }
+
+            break;
         }
 
-        throw new InvalidOperationException($"Project item for issue {issueNumber} not found");
+        throw new InvalidOperationException($"Project item for issue {issueNumber} not found in project {projectId}");
+    }
+
+    private async Task<List<ProjectField>> GetProjectFields(
+        string repository,
+        string org,
+        string projectId,
+        CancellationToken cancellationToken)
+    {
+        var path = $"orgs/{org}/projectsV2/{projectId}/fields";
+        Console.WriteLine($"[DEBUG] Calling REST API: GET {path}");
+        using var request = await CreateRequest(HttpMethod.Get, repository, path, cancellationToken);
+        using var response = await _httpClient.SendAsync(request, cancellationToken);
+        
+        var json = await response.Content.ReadAsStringAsync(cancellationToken);
+        Console.WriteLine($"[DEBUG] Fields response status: {response.StatusCode}");
+        var bodyPreview = json.Length > 500 ? json.Substring(0, 500) + "..." : json;
+        Console.WriteLine($"[DEBUG] Fields response body: {bodyPreview}");
+        
+        await EnsureSuccess(response, cancellationToken);
+
+        using var document = JsonDocument.Parse(json);
+        var root = document.RootElement;
+
+        var fields = new List<ProjectField>();
+        
+        // REST API returns array directly, not wrapped in object
+        var fieldsArray = root.ValueKind == JsonValueKind.Array 
+            ? root 
+            : root.TryGetProperty("fields", out var fieldsElement) ? fieldsElement : root;
+
+        if (fieldsArray.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var fieldElement in fieldsArray.EnumerateArray())
+            {
+                // REST API returns id as number, convert to string
+                var id = fieldElement.GetProperty("id").ValueKind == JsonValueKind.Number
+                    ? fieldElement.GetProperty("id").GetInt64().ToString()
+                    : fieldElement.GetProperty("id").GetString() ?? string.Empty;
+                    
+                var name = fieldElement.GetProperty("name").GetString() ?? string.Empty;
+                var dataType = fieldElement.TryGetProperty("data_type", out var dtElement)
+                    ? dtElement.GetString()
+                    : null;
+
+                var options = new List<ProjectFieldOption>();
+                if (fieldElement.TryGetProperty("options", out var optionsElement) &&
+                    optionsElement.ValueKind == JsonValueKind.Array)
+                {
+                    foreach (var optionElement in optionsElement.EnumerateArray())
+                    {
+                        // Option IDs can also be numbers
+                        string optionId;
+                        if (optionElement.TryGetProperty("id", out var idProp))
+                        {
+                            optionId = idProp.ValueKind == JsonValueKind.Number
+                                ? idProp.GetInt64().ToString()
+                                : idProp.GetString() ?? string.Empty;
+                        }
+                        else
+                        {
+                            continue; // Skip options without ID
+                        }
+
+                        // Name might be nested or missing
+                        string optionName;
+                        if (optionElement.TryGetProperty("name", out var nameProp))
+                        {
+                            if (nameProp.ValueKind == JsonValueKind.String)
+                            {
+                                optionName = nameProp.GetString() ?? string.Empty;
+                            }
+                            else if (nameProp.ValueKind == JsonValueKind.Object)
+                            {
+                                // Name might be nested in an object - try to extract text field
+                                optionName = nameProp.TryGetProperty("text", out var textProp)
+                                    ? textProp.GetString() ?? string.Empty
+                                    : optionId; // Fallback to ID
+                            }
+                            else
+                            {
+                                optionName = string.Empty;
+                            }
+                        }
+                        else
+                        {
+                            optionName = optionId; // Fallback to ID if name is missing
+                        }
+
+                        options.Add(new ProjectFieldOption(optionId, optionName));
+                    }
+                }
+
+                // Map REST data_type to GraphQL-style typename for compatibility
+                var typeName = dataType switch
+                {
+                    "single_select" => "ProjectV2SingleSelectField",
+                    "text" => "ProjectV2Field",
+                    _ => "ProjectV2Field"
+                };
+
+                fields.Add(new ProjectField(id, name, typeName, options));
+            }
+        }
+
+        return fields;
     }
 
     private async Task<Dictionary<string, string?>> GetProjectItemFieldValues(
@@ -235,64 +438,30 @@ public sealed class GitHubClient : IGitHubClient
         string itemId,
         CancellationToken cancellationToken)
     {
-        var request = new
-        {
-            query = ProjectItemFieldValuesQuery,
-            variables = new { itemId }
-        };
+        // REST API: get specific project item
+        var path = $"projects/items/{itemId}";
+        using var request = await CreateRequest(HttpMethod.Get, repository, path, cancellationToken);
+        using var response = await _httpClient.SendAsync(request, cancellationToken);
+        await EnsureSuccess(response, cancellationToken);
 
-        using var response = await SendGraphQl(repository, request, cancellationToken);
-        if (!response.RootElement.TryGetProperty("data", out var dataElement))
-            throw new InvalidOperationException("GraphQL response missing data");
+        var json = await response.Content.ReadAsStringAsync(cancellationToken);
+        using var document = JsonDocument.Parse(json);
+        var root = document.RootElement;
 
-        if (!dataElement.TryGetProperty("node", out var nodeElement))
-            throw new InvalidOperationException("GraphQL response missing project item node");
-
-        return ParseFieldValues(nodeElement);
+        return ParseRestFieldValues(root);
     }
 
-    private static List<ProjectField> ParseFields(JsonElement nodeElement)
+    private static Dictionary<string, string?> ParseRestFieldValues(JsonElement itemElement)
     {
-        if (!nodeElement.TryGetProperty("fields", out var fieldsElement))
-            throw new InvalidOperationException("Project fields not found");
-
-        if (!fieldsElement.TryGetProperty("nodes", out var nodesElement))
-            throw new InvalidOperationException("Project field nodes not found");
-
-        var fields = new List<ProjectField>();
-        foreach (var fieldNode in nodesElement.EnumerateArray())
-        {
-            var name = fieldNode.GetProperty("name").GetString() ?? string.Empty;
-            var id = fieldNode.GetProperty("id").GetString() ?? string.Empty;
-            var typeName = fieldNode.GetProperty("__typename").GetString();
-            var options = ParseOptions(fieldNode);
-
-            fields.Add(new ProjectField(id, name, typeName, options));
-        }
-
-        return fields;
-    }
-
-    private static Dictionary<string, string?> ParseFieldValues(JsonElement nodeElement)
-    {
-        if (!nodeElement.TryGetProperty("fieldValues", out var valuesElement))
-            throw new InvalidOperationException("Project item field values not found");
-
-        if (!valuesElement.TryGetProperty("nodes", out var nodesElement))
-            throw new InvalidOperationException("Project item field value nodes not found");
-
         var values = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase);
-        foreach (var valueElement in nodesElement.EnumerateArray())
+
+        if (!itemElement.TryGetProperty("field_values", out var fieldValuesElement))
+            return values;
+
+        foreach (var fieldProp in fieldValuesElement.EnumerateObject())
         {
-            if (!valueElement.TryGetProperty("field", out var fieldElement))
-                continue;
-
-            if (!fieldElement.TryGetProperty("name", out var fieldNameElement))
-                continue;
-
-            var fieldName = fieldNameElement.GetString();
-            if (string.IsNullOrWhiteSpace(fieldName))
-                continue;
+            var fieldName = fieldProp.Name;
+            var valueElement = fieldProp.Value;
 
             string? value = null;
             if (valueElement.TryGetProperty("text", out var textElement))
@@ -304,68 +473,6 @@ public sealed class GitHubClient : IGitHubClient
         }
 
         return values;
-    }
-
-    private static List<ProjectFieldOption> ParseOptions(JsonElement fieldNode)
-    {
-        if (!fieldNode.TryGetProperty("options", out var optionsElement))
-            return new List<ProjectFieldOption>();
-
-        var options = new List<ProjectFieldOption>();
-        foreach (var option in optionsElement.EnumerateArray())
-        {
-            var id = option.GetProperty("id").GetString() ?? string.Empty;
-            var name = option.GetProperty("name").GetString() ?? string.Empty;
-            options.Add(new ProjectFieldOption(id, name));
-        }
-
-        return options;
-    }
-
-    private static ProjectItemPage ParseItems(JsonElement nodeElement)
-    {
-        if (!nodeElement.TryGetProperty("items", out var itemsElement))
-            throw new InvalidOperationException("Project items not found");
-        if (!itemsElement.TryGetProperty("nodes", out var nodesElement))
-            throw new InvalidOperationException("Project item nodes not found");
-        if (!itemsElement.TryGetProperty("pageInfo", out var pageInfoElement))
-            throw new InvalidOperationException("Project item pageInfo not found");
-
-        var items = new List<ProjectItem>();
-        foreach (var itemElement in nodesElement.EnumerateArray())
-        {
-            var id = itemElement.GetProperty("id").GetString();
-            if (string.IsNullOrWhiteSpace(id))
-                throw new InvalidOperationException("Project item id missing");
-
-            int? issueNumber = null;
-            if (itemElement.TryGetProperty("content", out var content) &&
-                content.TryGetProperty("number", out var numberElement))
-            {
-                issueNumber = numberElement.GetInt32();
-            }
-
-            items.Add(new ProjectItem(id, issueNumber));
-        }
-
-        var pageInfo = new ProjectPageInfo(
-            pageInfoElement.GetProperty("hasNextPage").GetBoolean(),
-            pageInfoElement.TryGetProperty("endCursor", out var endCursorElement)
-                ? endCursorElement.GetString()
-                : null);
-
-        return new ProjectItemPage(items, pageInfo);
-    }
-
-    private static string? TryFindProjectItemId(IEnumerable<ProjectItem> items, int issueNumber)
-    {
-        foreach (var item in items)
-        {
-            if (item.IssueNumber == issueNumber)
-                return item.Id;
-        }
-
-        return null;
     }
 
     private async Task<string> GetBranchSha(string repository, string baseBranch, CancellationToken cancellationToken)
@@ -382,27 +489,6 @@ public sealed class GitHubClient : IGitHubClient
         return sha;
     }
 
-    private async Task<JsonDocument> SendGraphQl(string repository, object payload, CancellationToken cancellationToken)
-    {
-        var json = JsonSerializer.Serialize(payload);
-        Console.WriteLine($"[DEBUG] GraphQL request: {json}");
-        
-        using var request = await CreateRequest(HttpMethod.Post, repository, GraphQlEndpoint, cancellationToken);
-        request.Content = new StringContent(json, Encoding.UTF8, "application/json");
-
-        using var response = await _httpClient.SendAsync(request, cancellationToken);
-        await EnsureSuccess(response, cancellationToken);
-
-        var responseBody = await response.Content.ReadAsStringAsync(cancellationToken);
-        Console.WriteLine($"[DEBUG] GraphQL response: {responseBody}");
-        
-        var document = JsonDocument.Parse(responseBody);
-        if (document.RootElement.TryGetProperty("errors", out var errors) && errors.ValueKind == JsonValueKind.Array && errors.GetArrayLength() > 0)
-            throw new InvalidOperationException($"GraphQL request failed: {errors}");
-
-        return document;
-    }
-
     private async Task<HttpRequestMessage> CreateRequest(
         HttpMethod method,
         string repository,
@@ -413,6 +499,12 @@ public sealed class GitHubClient : IGitHubClient
         var request = new HttpRequestMessage(method, path);
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
         request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/vnd.github+json"));
+        
+        var fullUrl = _httpClient.BaseAddress?.AbsoluteUri.TrimEnd('/') + "/" + path.TrimStart('/');
+        Console.WriteLine($"[DEBUG] Full request URL: {method} {fullUrl}");
+        Console.WriteLine($"[DEBUG] Token (first 20 chars): {token.Substring(0, Math.Min(20, token.Length))}...");
+        Console.WriteLine($"[DEBUG] Request Headers: Accept={string.Join(",", request.Headers.Accept.Select(h => h.MediaType))}, Auth=Bearer {token.Substring(0, 10)}...");
+        
         return request;
     }
 
@@ -433,107 +525,7 @@ public sealed class GitHubClient : IGitHubClient
 
     private sealed record ProjectMetadata(string ItemId, List<ProjectField> Fields);
 
-    private sealed record ProjectItem(string Id, int? IssueNumber);
-
-    private sealed record ProjectPageInfo(bool HasNextPage, string? EndCursor);
-
-    private sealed record ProjectItemPage(List<ProjectItem> Items, ProjectPageInfo PageInfo);
-
-    private sealed record ProjectField(string Id, string Name, string? TypeName, List<ProjectFieldOption> Options)
-    {
-        public object BuildValue(string value)
-        {
-            if (Options.Count == 0)
-                return new { text = value };
-
-            var option = Options.FirstOrDefault(option => string.Equals(option.Name, value, StringComparison.OrdinalIgnoreCase));
-            if (option is null)
-                throw new InvalidOperationException($"Project field option not found for {Name}: {value}");
-
-            return new { singleSelectOptionId = option.Id };
-        }
-    }
+    private sealed record ProjectField(string Id, string Name, string? TypeName, List<ProjectFieldOption> Options);
 
     private sealed record ProjectFieldOption(string Id, string Name);
-
-    private const string ProjectMetadataQuery = @"
-query($projectId: ID!, $itemsAfter: String) {
-  node(id: $projectId) {
-    ... on ProjectV2 {
-      fields(first: 100) {
-        nodes {
-          __typename
-          ... on ProjectV2Field {
-            id
-            name
-          }
-          ... on ProjectV2SingleSelectField {
-            id
-            name
-            options {
-              id
-              name
-            }
-          }
-        }
-      }
-      items(first: 100, after: $itemsAfter) {
-        nodes {
-          id
-          content {
-            ... on Issue {
-              number
-            }
-          }
-        }
-        pageInfo {
-          hasNextPage
-          endCursor
-        }
-      }
-    }
-  }
-}
-";
-
-    private const string ProjectFieldMutation = @"
-mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $value: ProjectV2FieldValue!) {
-  updateProjectV2ItemFieldValue(
-    input: { projectId: $projectId, itemId: $itemId, fieldId: $fieldId, value: $value }
-  ) {
-    projectV2Item {
-      id
-    }
-  }
-}
-";
-
-    private const string ProjectItemFieldValuesQuery = @"
-query($itemId: ID!) {
-  node(id: $itemId) {
-    ... on ProjectV2Item {
-      fieldValues(first: 100) {
-        nodes {
-          ... on ProjectV2ItemFieldTextValue {
-            text
-            field {
-              ... on ProjectV2FieldCommon {
-                name
-              }
-            }
-          }
-          ... on ProjectV2ItemFieldSingleSelectValue {
-            name
-            field {
-              ... on ProjectV2FieldCommon {
-                name
-              }
-            }
-          }
-        }
-      }
-    }
-  }
-}
-";
 }

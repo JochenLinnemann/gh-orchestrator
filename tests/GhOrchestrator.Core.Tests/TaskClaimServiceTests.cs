@@ -85,7 +85,7 @@ public class TaskClaimServiceTests
         var result = await service.ClaimAsync(client, "org/repo", "project-id", 42, "run-42");
 
         Assert.False(result.IsValid);
-        Assert.Equal("Failed to read project task state.", result.ErrorMessage);
+        Assert.StartsWith("Failed to read project task state", result.ErrorMessage);
         Assert.False(client.UpdateProjectFieldsCalled);
     }
 

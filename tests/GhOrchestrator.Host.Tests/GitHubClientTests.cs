@@ -56,42 +56,44 @@ public class GitHubClientTests
     }
 
     [Fact]
-    public async Task UpdateProjectFields_SendsGraphQlMutations()
+    public async Task UpdateProjectFields_SendsRestApiRequests()
     {
         var callCount = 0;
-        var handler = new FakeHttpMessageHandler(_ =>
+        var handler = new FakeHttpMessageHandler(request =>
         {
+            var path = request.RequestUri?.AbsolutePath ?? string.Empty;
             callCount += 1;
-            if (callCount == 1)
+
+            // First call: list project items
+            if (path == "/orgs/octo/projectsV2/proj-1/items")
             {
-                var metadata = """
-                {
-                  "data": {
-                    "node": {
-                      "fields": {
-                        "nodes": [
-                          { "__typename": "ProjectV2SingleSelectField", "id": "field-ai", "name": "AI", "options": [ { "id": "opt-running", "name": "running" } ] },
-                          { "__typename": "ProjectV2Field", "id": "field-run", "name": "Run ID" }
-                        ]
-                      },
-                      "items": {
-                        "nodes": [
-                          { "id": "item-1", "content": { "number": 42 } }
-                        ],
-                        "pageInfo": {
-                          "hasNextPage": false,
-                          "endCursor": null
-                        }
-                      }
-                    }
-                  }
-                }
+                var items = """
+                [
+                  { "node_id": "item-1", "content_type": "Issue", "content": { "number": 42 } }
+                ]
                 """;
-                return FakeHttpMessageHandler.Json(HttpStatusCode.OK, metadata);
+                return FakeHttpMessageHandler.Json(HttpStatusCode.OK, items);
             }
 
-            var mutation = "{\"data\":{\"updateProjectV2ItemFieldValue\":{\"projectV2Item\":{\"id\":\"item-1\"}}}}";
-            return FakeHttpMessageHandler.Json(HttpStatusCode.OK, mutation);
+            // Second call: get project fields
+            if (path == "/orgs/octo/projectsV2/proj-1/fields")
+            {
+                var fields = """
+                [
+                  { "id": "field-ai", "name": "AI", "data_type": "single_select", "options": [ { "id": "opt-running", "name": "running" } ] },
+                  { "id": "field-run", "name": "Run ID", "data_type": "text" }
+                ]
+                """;
+                return FakeHttpMessageHandler.Json(HttpStatusCode.OK, fields);
+            }
+
+            // Update calls: PATCH field values
+            if (path.StartsWith("/orgs/octo/projectsV2/items/") && request.Method.Method == "PATCH")
+            {
+                return FakeHttpMessageHandler.Json(HttpStatusCode.OK, "{}");
+            }
+
+            return new HttpResponseMessage(HttpStatusCode.NotFound);
         });
 
         var client = CreateClient(handler, new FixedTokenProvider("token-123"));
@@ -103,72 +105,63 @@ public class GitHubClientTests
 
         await client.UpdateProjectFields("octo/demo", "proj-1", 42, updates);
 
-        Assert.Equal(3, handler.Requests.Count(request => request.RequestUri?.AbsolutePath == "/graphql"));
+        // Verify: list items, get fields, then 2 PATCH requests for field updates
+        Assert.Equal(4, handler.Requests.Count);
+        Assert.Equal(2, handler.Requests.Count(r => r.Method.Method == "PATCH"));
     }
 
     [Fact]
     public async Task UpdateProjectFields_PaginatesItemsUntilFound()
     {
         var callCount = 0;
-        var handler = new FakeHttpMessageHandler(_ =>
+        var handler = new FakeHttpMessageHandler(request =>
         {
+            var path = request.RequestUri?.AbsolutePath ?? string.Empty;
+            var query = request.RequestUri?.Query ?? string.Empty;
             callCount += 1;
-            if (callCount == 1)
+
+            // First call: list items page 1 (no match)
+            if (path == "/orgs/octo/projectsV2/proj-1/items" && (string.IsNullOrEmpty(query) || !query.Contains("&page=") && !query.Contains("?page=") && !query.StartsWith("page=")))
             {
                 var page1 = """
-                {
-                  "data": {
-                    "node": {
-                      "fields": {
-                        "nodes": [
-                          { "__typename": "ProjectV2SingleSelectField", "id": "field-ai", "name": "AI", "options": [ { "id": "opt-running", "name": "running" } ] }
-                        ]
-                      },
-                      "items": {
-                        "nodes": [
-                          { "id": "item-1", "content": { "number": 1 } }
-                        ],
-                        "pageInfo": {
-                          "hasNextPage": true,
-                          "endCursor": "cursor-1"
-                        }
-                      }
-                    }
-                  }
-                }
+                [
+                  { "node_id": "item-1", "content_type": "Issue", "content": { "number": 1 } }
+                ]
                 """;
-                return FakeHttpMessageHandler.Json(HttpStatusCode.OK, page1);
+                var response = FakeHttpMessageHandler.Json(HttpStatusCode.OK, page1);
+                response.Headers.Add("Link", "<https://api.github.com/orgs/octo/projectsV2/proj-1/items?page=2>; rel=\"next\"");
+                return response;
             }
 
-            if (callCount == 2)
+            // Get project fields (called on first page)
+            if (path == "/orgs/octo/projectsV2/proj-1/fields")
+            {
+                var fields = """
+                [
+                  { "id": "field-ai", "name": "AI", "data_type": "single_select", "options": [ { "id": "opt-running", "name": "running" } ] }
+                ]
+                """;
+                return FakeHttpMessageHandler.Json(HttpStatusCode.OK, fields);
+            }
+
+            // Second call: list items page 2 (found)
+            if (path == "/orgs/octo/projectsV2/proj-1/items" && query.Contains("page=2"))
             {
                 var page2 = """
-                {
-                  "data": {
-                    "node": {
-                      "fields": {
-                        "nodes": [
-                          { "__typename": "ProjectV2SingleSelectField", "id": "field-ai", "name": "AI", "options": [ { "id": "opt-running", "name": "running" } ] }
-                        ]
-                      },
-                      "items": {
-                        "nodes": [
-                          { "id": "item-2", "content": { "number": 42 } }
-                        ],
-                        "pageInfo": {
-                          "hasNextPage": false,
-                          "endCursor": null
-                        }
-                      }
-                    }
-                  }
-                }
+                [
+                  { "node_id": "item-2", "content_type": "Issue", "content": { "number": 42 } }
+                ]
                 """;
                 return FakeHttpMessageHandler.Json(HttpStatusCode.OK, page2);
             }
 
-            var mutation = "{\"data\":{\"updateProjectV2ItemFieldValue\":{\"projectV2Item\":{\"id\":\"item-2\"}}}}";
-            return FakeHttpMessageHandler.Json(HttpStatusCode.OK, mutation);
+            // PATCH field value
+            if (path.StartsWith("/orgs/octo/projectsV2/items/") && request.Method.Method == "PATCH")
+            {
+                return FakeHttpMessageHandler.Json(HttpStatusCode.OK, "{}");
+            }
+
+            return new HttpResponseMessage(HttpStatusCode.NotFound);
         });
 
         var client = CreateClient(handler, new FixedTokenProvider("token-123"));
@@ -179,19 +172,9 @@ public class GitHubClientTests
 
         await client.UpdateProjectFields("octo/demo", "proj-1", 42, updates);
 
-        Assert.Equal(3, handler.Requests.Count(request => request.RequestUri?.AbsolutePath == "/graphql"));
-
-        var secondGraphQlIndex = handler.Requests
-            .Select((request, index) => new { request, index })
-            .Where(entry => entry.request.RequestUri?.AbsolutePath == "/graphql")
-            .Skip(1)
-            .Select(entry => entry.index)
-            .First();
-
-        var payload = handler.RequestBodies[secondGraphQlIndex] ?? string.Empty;
-        using var document = JsonDocument.Parse(payload);
-        var cursor = document.RootElement.GetProperty("variables").GetProperty("itemsAfter").GetString();
-        Assert.Equal("cursor-1", cursor);
+        // Verify: 2 list calls (pagination), 1 get fields, 1 PATCH
+        Assert.Equal(4, handler.Requests.Count);
+        Assert.Equal(2, handler.Requests.Count(r => r.RequestUri?.AbsolutePath == "/orgs/octo/projectsV2/proj-1/items"));
     }
 
     private static GitHubClient CreateClient(FakeHttpMessageHandler handler, IGitHubInstallationTokenProvider tokenProvider)
