@@ -49,7 +49,7 @@ public class TaskClaimServiceTests
         var result = await service.ClaimAsync(client, "org/repo", "project-id", 42, "run-42");
 
         Assert.False(result.IsValid);
-        Assert.Equal("Failed to update project fields.", result.ErrorMessage);
+        Assert.Equal("Failed to update project fields: boom", result.ErrorMessage);
         Assert.True(client.UpdateProjectFieldsCalled);
     }
 
