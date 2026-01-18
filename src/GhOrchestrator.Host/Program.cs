@@ -6,6 +6,12 @@ var builder = WebApplication.CreateBuilder(args);
 
 var hostConfiguration = GitHubHostConfiguration.Load(builder.Configuration);
 var webhookHandler = new IssueCommentWebhookHandler();
+var httpClient = new HttpClient();
+var jwtProvider = new GitHubAppJwtProvider(hostConfiguration.AppId, hostConfiguration.ReadPrivateKeyPem());
+var tokenCache = new GitHubInstallationTokenCache();
+var installationTokenProvider = new GitHubInstallationTokenProvider(httpClient, jwtProvider, tokenCache);
+var gitHubClient = new GitHubClient(httpClient, installationTokenProvider);
+var taskClaimService = new TaskClaimService();
 
 var app = builder.Build();
 
@@ -70,9 +76,39 @@ app.MapPost("/webhook", async (HttpRequest request) =>
         }
 
         app.Logger.LogInformation("Parsed event: repo={Repo}, issue={Issue}, author={Author}, body={Body}", @event.Repository, @event.IssueNumber, @event.CommentAuthor, @event.CommentBody);
+        var runId = RunIdFormatter.Format(@event.IssueNumber, DateTimeOffset.UtcNow);
 
-        // TODO: Wire up handler and orchestrator when GitHub client is available
-        return Results.Ok(new { status = "Event received and verified" });
+        TaskClaimResult claimResult;
+        try
+        {
+            claimResult = await taskClaimService.ClaimAsync(
+                gitHubClient,
+                @event.Repository,
+                hostConfiguration.ProjectId,
+                @event.IssueNumber,
+                runId,
+                cancellationToken: request.HttpContext.RequestAborted);
+        }
+        catch (Exception ex)
+        {
+            app.Logger.LogError(ex, "Unexpected error while claiming task");
+            return Results.StatusCode(500);
+        }
+
+        if (!claimResult.IsValid)
+        {
+            app.Logger.LogWarning("Task claim failed: {Error}", claimResult.ErrorMessage);
+            return Results.BadRequest(new { status = "Claim failed", error = claimResult.ErrorMessage, runId });
+        }
+
+        if (claimResult.IsAlreadyClaimed)
+        {
+            app.Logger.LogInformation("Task already claimed for run {RunId}", runId);
+            return Results.Ok(new { status = "Already claimed", runId });
+        }
+
+        app.Logger.LogInformation("Task claimed with {UpdateCount} updates for run {RunId}", claimResult.Updates.Count, runId);
+        return Results.Ok(new { status = "Claimed", runId });
     }
     catch (Exception ex)
     {

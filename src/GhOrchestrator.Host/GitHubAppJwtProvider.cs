@@ -40,8 +40,15 @@ public sealed class GitHubAppJwtProvider
 
     private static RsaSecurityKey CreateSigningKey(string privateKeyPem)
     {
-        var rsa = RSA.Create();
-        rsa.ImportFromPem(privateKeyPem);
-        return new RsaSecurityKey(rsa);
+        try
+        {
+            var rsa = RSA.Create();
+            rsa.ImportFromPem(privateKeyPem);
+            return new RsaSecurityKey(rsa);
+        }
+        catch (Exception ex)
+        {
+            throw new InvalidOperationException($"Failed to import RSA private key from PEM. Key length: {privateKeyPem.Length}, first 50 chars: {privateKeyPem[..Math.Min(50, privateKeyPem.Length)]}", ex);
+        }
     }
 }

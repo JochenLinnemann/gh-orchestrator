@@ -1,6 +1,12 @@
 namespace GhOrchestrator.Host;
 
-public record GitHubHostConfiguration(long AppId, string? PrivateKeyPath, string? PrivateKeyPem, string WebhookSecret, string AllowedOrg)
+public record GitHubHostConfiguration(
+    long AppId,
+    string? PrivateKeyPath,
+    string? PrivateKeyPem,
+    string WebhookSecret,
+    string AllowedOrg,
+    string ProjectId)
 {
     public string ReadPrivateKeyPem()
     {
@@ -30,7 +36,8 @@ public record GitHubHostConfiguration(long AppId, string? PrivateKeyPath, string
 
         var webhookSecret = configuration["GH_WEBHOOK_SECRET"] ?? throw new InvalidOperationException("GH_WEBHOOK_SECRET not set");
         var allowedOrg = configuration["GH_ALLOWED_ORG"] ?? throw new InvalidOperationException("GH_ALLOWED_ORG not set");
+        var projectId = configuration["GH_PROJECT_ID"] ?? throw new InvalidOperationException("GH_PROJECT_ID not set");
 
-        return new GitHubHostConfiguration(appId, privateKeyPath, privateKeyPem, webhookSecret, allowedOrg);
+        return new GitHubHostConfiguration(appId, privateKeyPath, privateKeyPem, webhookSecret, allowedOrg, projectId);
     }
 }
