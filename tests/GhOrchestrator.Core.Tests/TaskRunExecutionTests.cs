@@ -54,8 +54,8 @@ public class TaskRunExecutionTests
         var result = await TaskRunExecutor.ExecuteAsync(client, ValidTask, plan);
 
         Assert.Equal(2, result.Results.Count);
-        Assert.Single(result.Results.Where(item => item.Repository == "org/service-a" && !item.IsSuccess));
-        Assert.Single(result.Results.Where(item => item.Repository == "org/service-b" && item.IsSuccess));
+        Assert.Single(result.Results, item => item.Repository == "org/service-a" && !item.IsSuccess);
+        Assert.Single(result.Results, item => item.Repository == "org/service-b" && item.IsSuccess);
         Assert.Single(client.PullRequests);
     }
 
