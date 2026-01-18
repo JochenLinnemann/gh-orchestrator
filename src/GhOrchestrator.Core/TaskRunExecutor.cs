@@ -2,7 +2,7 @@ namespace GhOrchestrator.Core;
 
 /// <summary>
 /// Builds per-repo branch and pull request payloads for a task run.
-/// Stub only: no GitHub I/O.
+/// Includes helper to execute per-repo branch + PR creation using a GitHub client.
 /// </summary>
 public static class TaskRunExecutor
 {
@@ -34,15 +34,63 @@ public static class TaskRunExecutor
                 throw new ArgumentException($"Base branch is required for {repo}", nameof(baseBranches));
 
             var branchName = BranchNameFormatter.Format(plan.RunId, shortSlug);
-            var request = new PullRequestRequest(
-                Title: $"AI: {task.Description}",
-                Body: $"Run {plan.RunId} for {repo}.\n\nTask: {task.Description}",
-                HeadBranch: branchName,
-                BaseBranch: baseBranch);
+            var request = BuildPullRequestRequest(task, plan, repo, branchName, baseBranch);
 
             plans.Add(new RepoPullRequestPlan(repo, branchName, request));
         }
 
         return plans;
+    }
+
+    public static async Task<TaskRunExecutionResult> ExecuteAsync(
+        IGitHubClient gitHubClient,
+        TaskSpec task,
+        TaskRunPlan plan,
+        CancellationToken cancellationToken = default)
+    {
+        if (gitHubClient is null)
+            throw new ArgumentNullException(nameof(gitHubClient));
+        if (task is null)
+            throw new ArgumentNullException(nameof(task));
+        if (plan is null)
+            throw new ArgumentNullException(nameof(plan));
+
+        var results = new List<RepoExecutionResult>(plan.Repos.Count);
+        var shortSlug = TaskSlugFormatter.Format(task.Title, task.Description);
+
+        foreach (var repo in plan.Repos)
+        {
+            var branchName = BranchNameFormatter.Format(plan.RunId, shortSlug);
+            var baseBranch = string.Empty;
+
+            try
+            {
+                baseBranch = await gitHubClient.GetDefaultBranch(repo, cancellationToken);
+                var request = BuildPullRequestRequest(task, plan, repo, branchName, baseBranch);
+
+                await gitHubClient.CreateBranch(repo, branchName, baseBranch, cancellationToken);
+                var pullRequest = await gitHubClient.CreatePullRequest(repo, request, cancellationToken);
+
+                results.Add(RepoExecutionResult.Success(repo, branchName, baseBranch, pullRequest));
+            }
+            catch (Exception ex)
+            {
+                results.Add(RepoExecutionResult.Failure(repo, branchName, baseBranch, ex.Message));
+            }
+        }
+
+        return new TaskRunExecutionResult(results);
+    }
+
+    private static PullRequestRequest BuildPullRequestRequest(
+        TaskSpec task,
+        TaskRunPlan plan,
+        string repository,
+        string branchName,
+        string baseBranch)
+    {
+        var title = $"AI: {task.Title}";
+        var body = $"Run: {plan.RunId}\nRepo: {repository}\nIssue: {task.Repository}#{task.IssueNumber}\n\nTask: {task.Description}";
+        return new PullRequestRequest(title, body, branchName, baseBranch);
     }
 }

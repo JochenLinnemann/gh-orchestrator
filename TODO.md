@@ -151,7 +151,7 @@ Tasks (in order)
 
 ---
 
-## 🟧 Plan 13: Multi-repo branch + PR creation (real I/O)
+## ✅ Plan 13: Multi-repo branch + PR creation (real I/O)
 
 Goal: One branch and one PR per repo using GitHub APIs.
 

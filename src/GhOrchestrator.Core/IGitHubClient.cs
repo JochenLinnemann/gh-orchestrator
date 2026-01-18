@@ -23,11 +23,16 @@ public interface IGitHubClient
         IReadOnlyCollection<ProjectFieldUpdate> updates,
         CancellationToken cancellationToken = default);
 
+    Task<string> GetDefaultBranch(string repository, CancellationToken cancellationToken = default);
+
     Task CreateBranch(
         string repository,
         string newBranch,
         string baseBranch,
         CancellationToken cancellationToken = default);
 
-    Task CreatePullRequest(string repository, PullRequestRequest request, CancellationToken cancellationToken = default);
+    Task<PullRequestLink> CreatePullRequest(
+        string repository,
+        PullRequestRequest request,
+        CancellationToken cancellationToken = default);
 }
