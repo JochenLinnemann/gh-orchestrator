@@ -10,6 +10,12 @@ public interface IGitHubClient
 
     Task AddIssueComment(string repository, int issueNumber, string body, CancellationToken cancellationToken = default);
 
+    Task<ProjectTaskStateSnapshot> GetProjectTaskState(
+        string repository,
+        string projectId,
+        int issueNumber,
+        CancellationToken cancellationToken = default);
+
     Task UpdateProjectFields(
         string repository,
         string projectId,
