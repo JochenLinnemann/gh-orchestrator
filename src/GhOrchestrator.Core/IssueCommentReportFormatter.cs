@@ -13,39 +13,56 @@ public static class IssueCommentReportFormatter
     public static string Format(
         string summary,
         string testInstructions,
-        IReadOnlyList<PullRequestLink> pullRequests,
+        IReadOnlyList<RepoExecutionResult> executionResults,
         IReadOnlyList<string> riskNotes)
     {
         if (string.IsNullOrWhiteSpace(summary))
             throw new ArgumentException("Summary is required.", nameof(summary));
         if (string.IsNullOrWhiteSpace(testInstructions))
             throw new ArgumentException("Test instructions are required.", nameof(testInstructions));
-        if (pullRequests is null)
-            throw new ArgumentNullException(nameof(pullRequests));
+        if (executionResults is null)
+            throw new ArgumentNullException(nameof(executionResults));
         if (riskNotes is null)
             throw new ArgumentNullException(nameof(riskNotes));
 
         var builder = new StringBuilder();
         builder.AppendLine("## Summary");
-        builder.AppendLine(summary.Trim());
+        builder.AppendLine(MarkdownEscaper.Escape(summary.Trim()));
         builder.AppendLine();
         builder.AppendLine("## Pull Requests");
 
-        if (pullRequests.Count == 0)
+        if (executionResults.Count == 0)
         {
             builder.AppendLine("- (none)");
         }
         else
         {
-            foreach (var pr in pullRequests)
+            foreach (var result in executionResults)
             {
-                builder.AppendLine($"- {pr.Repository}: {pr.Url}");
+                var repository = MarkdownEscaper.Escape(result.Repository);
+
+                if (result.IsSuccess)
+                {
+                    if (result.PullRequest is null)
+                    {
+                        builder.AppendLine($"- ⚠️ {repository}: PR link missing");
+                    }
+                    else
+                    {
+                        builder.AppendLine($"- ✅ {repository}: {result.PullRequest.Url}");
+                    }
+                }
+                else
+                {
+                    var errorMessage = MarkdownEscaper.Escape(result.ErrorMessage ?? "Unknown error");
+                    builder.AppendLine($"- ❌ {repository}: {errorMessage}");
+                }
             }
         }
 
         builder.AppendLine();
         builder.AppendLine("## How to Test");
-        builder.AppendLine(testInstructions.Trim());
+        builder.AppendLine(MarkdownEscaper.Escape(testInstructions.Trim()));
         builder.AppendLine();
         builder.AppendLine("## Risks");
 
@@ -57,7 +74,7 @@ public static class IssueCommentReportFormatter
         {
             foreach (var risk in riskNotes)
             {
-                builder.AppendLine($"- {risk}");
+                builder.AppendLine($"- {MarkdownEscaper.Escape(risk)}");
             }
         }
 

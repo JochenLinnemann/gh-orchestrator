@@ -164,7 +164,7 @@ Tasks (in order)
 
 ---
 
-## 🟧 Plan 14: Reporting back on Issue (real I/O)
+## ✅ Plan 14: Reporting back on Issue (real I/O)
 
 Goal: Post summary, PR links, how to test, and risk notes to the tracking Issue.
 
