@@ -202,6 +202,23 @@ public class Orchestrator
             planResult.Plan,
             cancellationToken);
 
+        // 6. Post report comment back to the issue
+        var reportService = new IssueCommentReportService();
+        var summary = $"Task execution completed for run `{runId}`.";
+        var testInstructions = task.AcceptanceCriteria ?? "Review the PRs and verify changes meet the task requirements.";
+        var riskNotes = !string.IsNullOrWhiteSpace(task.Constraints) 
+            ? new[] { $"Constraints: {task.Constraints}" } 
+            : Array.Empty<string>();
+
+        await reportService.PostReportAsync(
+            gitHubClient,
+            task,
+            summary,
+            testInstructions,
+            executionResult.Results,
+            riskNotes,
+            cancellationToken);
+
         return OrchestratorResult.Success(runId, executionResult);
     }
 }
