@@ -262,7 +262,7 @@ public class Orchestrator
             issueCommentEvent.Repository,
             issueCommentEvent.IssueNumber,
             runId,
-            planResult.Plan.Repositories.Count);
+            planResult.Plan.Repos.Count);
 
         // 5. Execute the task (create branches and PRs)
         _logger.LogInformation(
