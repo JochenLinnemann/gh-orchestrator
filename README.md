@@ -66,6 +66,18 @@ For system structure and trust boundaries, see `ARCHITECTURE.md`.
 
 ---
 
+## Quick Start (local manual test)
+
+1. Follow the local configuration steps in `SETUP.md` (environment variables or `appsettings.Development.json`).
+2. Start the host (`dotnet run` from `src/GhOrchestrator.Host`).
+3. Use the manual webhook steps in `SETUP.md` to trigger `/ai start`.
+
+See:
+- `SETUP.md` → **Local Development (v0)** for configuration and run commands.
+- `SETUP.md` → **Manual Webhook Testing (Plan 5)** for the end-to-end trigger.
+
+---
+
 ## Key Documentation
 
 - Getting started and local setup: `SETUP.md`
