@@ -116,6 +116,15 @@ app.MapPost("/webhook", async (HttpRequest request) =>
             successCount,
             failureCount);
 
+        // Log details of any failures
+        if (result.ExecutionResult?.Results != null)
+        {
+            foreach (var executionResult in result.ExecutionResult.Results.Where(r => !r.IsSuccess))
+            {
+                app.Logger.LogWarning("Execution failed for {Repository}: {Error}", executionResult.Repository, executionResult.ErrorMessage);
+            }
+        }
+
         return Results.Ok(new
         {
             status = "Executed",

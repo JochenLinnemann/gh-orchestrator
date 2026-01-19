@@ -27,19 +27,22 @@ public class Orchestrator
         IssueContext issueContext,
         string? triggerUser = null)
     {
-        // Parse /ai start command
-        var description = CommandParser.ParseAiStartCommand(commentText);
-        if (description is null)
+        // Check that /ai start command exists (but allow bare /ai start without description)
+        if (!commentText.Contains("/ai start", StringComparison.OrdinalIgnoreCase))
             return TaskValidationResult.FromTaskQualityGateFailure(
                 ValidationResult.Failure("Comment does not contain /ai start command"));
+
+        // Parse /ai start command description (may be null for bare /ai start)
+        var description = CommandParser.ParseAiStartCommand(commentText) ?? string.Empty;
 
         // Parse metadata from issue body
         var repos = CommandParser.ParseRepositories(issueBody);
         var acceptanceCriteria = CommandParser.ParseAcceptanceCriteria(issueBody);
         var constraints = CommandParser.ParseConstraints(issueBody);
 
-        // Create task specification
-        var task = new TaskSpec(issueNumber, repository, issueTitle, description, repos, triggerUser, acceptanceCriteria, constraints);
+        // Create task specification with fallback to acceptance criteria for description
+        var finalDescription = !string.IsNullOrWhiteSpace(description) ? description : (acceptanceCriteria ?? string.Empty);
+        var task = new TaskSpec(issueNumber, repository, issueTitle, finalDescription, repos, triggerUser, acceptanceCriteria, constraints);
 
         // Validate task
         var taskQualityGateResult = TaskQualityGate.Validate(task);
@@ -140,14 +143,20 @@ public class Orchestrator
             return OrchestratorResult.Failure(runId, "Issue not found");
         }
 
-        var description = CommandParser.ParseAiStartCommand(issueCommentEvent.CommentBody);
-        if (description is null)
+        var commandDescription = CommandParser.ParseAiStartCommand(issueCommentEvent.CommentBody);
+        var acceptanceCriteria = CommandParser.ParseAcceptanceCriteria(issue.Body ?? string.Empty);
+        
+        // Use command description if provided, otherwise use acceptance criteria
+        var description = !string.IsNullOrWhiteSpace(commandDescription) 
+            ? commandDescription 
+            : acceptanceCriteria;
+
+        if (string.IsNullOrWhiteSpace(description))
         {
-            return OrchestratorResult.Failure(runId, "Failed to parse /ai start command");
+            return OrchestratorResult.Failure(runId, "Task description missing: provide text after /ai start or set Acceptance Criteria in issue");
         }
 
         var repos = CommandParser.ParseRepositories(issue.Body ?? string.Empty);
-        var acceptanceCriteria = CommandParser.ParseAcceptanceCriteria(issue.Body ?? string.Empty);
         var constraints = CommandParser.ParseConstraints(issue.Body ?? string.Empty);
         var task = new TaskSpec(
             issueCommentEvent.IssueNumber,
