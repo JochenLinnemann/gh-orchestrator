@@ -11,12 +11,13 @@ var jwtProvider = new GitHubAppJwtProvider(hostConfiguration.AppId, hostConfigur
 var tokenCache = new GitHubInstallationTokenCache();
 var installationTokenProvider = new GitHubInstallationTokenProvider(httpClient, jwtProvider, tokenCache);
 var gitHubClient = new GitHubClient(httpClient, installationTokenProvider);
-var orchestrator = new Orchestrator();
 
 var app = builder.Build();
+var orchestratorLogger = new HostOrchestratorLogger(app.Logger);
+var orchestrator = new Orchestrator(orchestratorLogger);
 
 // Health check
-app.MapGet("/health", () => "OK");
+app.MapGet("/healthz", () => "OK");
 
 // Webhook endpoint for issue comments
 app.MapPost("/webhook", async (HttpRequest request) =>
@@ -38,7 +39,11 @@ app.MapPost("/webhook", async (HttpRequest request) =>
         // Extract signature header
         var signatureHeader = request.Headers["X-Hub-Signature-256"].ToString();
 
-        app.Logger.LogInformation("Received webhook: event={Event}, signature={Signature}, bodyLength={Length}", eventName, signatureHeader, body.Length);
+        app.Logger.LogInformation(
+            "Received webhook: event={Event}, signaturePresent={SignaturePresent}, bodyLength={Length}",
+            eventName,
+            !string.IsNullOrWhiteSpace(signatureHeader),
+            body.Length);
 
         var webhookResult = webhookHandler.Handle(body, signatureHeader, hostConfiguration.WebhookSecret);
         if (!webhookResult.IsValid || webhookResult.Event is null)
@@ -76,7 +81,11 @@ app.MapPost("/webhook", async (HttpRequest request) =>
             return Results.StatusCode(403);
         }
 
-        app.Logger.LogInformation("Parsed event: repo={Repo}, issue={Issue}, author={Author}, body={Body}", @event.Repository, @event.IssueNumber, @event.CommentAuthor, @event.CommentBody);
+        app.Logger.LogInformation(
+            "Parsed event: repo={Repo}, issue={Issue}, author={Author}",
+            @event.Repository,
+            @event.IssueNumber,
+            @event.CommentAuthor);
         var runId = RunIdFormatter.Format(@event.IssueNumber, DateTimeOffset.UtcNow);
 
         // Orchestrate the full task flow

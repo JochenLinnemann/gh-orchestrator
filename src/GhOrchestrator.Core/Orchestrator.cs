@@ -7,6 +7,13 @@ namespace GhOrchestrator.Core;
 /// </summary>
 public class Orchestrator
 {
+    private readonly IOrchestratorLogger _logger;
+
+    public Orchestrator(IOrchestratorLogger? logger = null)
+    {
+        _logger = logger ?? new NullOrchestratorLogger();
+    }
+
     /// <summary>
     /// Process an issue comment event.
     /// Validates /ai start command and task quality gates.
@@ -121,6 +128,12 @@ public class Orchestrator
         string runId,
         CancellationToken cancellationToken = default)
     {
+        _logger.LogInformation(
+            "Orchestration started: repo={Repository}, issue={IssueNumber}, runId={RunId}",
+            issueCommentEvent.Repository,
+            issueCommentEvent.IssueNumber,
+            runId);
+
         // 1. Validate the task
         var validationResult = await ProcessIssueCommentAsync(
             gitHubClient,
@@ -129,8 +142,20 @@ public class Orchestrator
 
         if (!validationResult.IsValid)
         {
+            _logger.LogWarning(
+                "Validation failed: repo={Repository}, issue={IssueNumber}, runId={RunId}, error={Error}",
+                issueCommentEvent.Repository,
+                issueCommentEvent.IssueNumber,
+                runId,
+                validationResult.ErrorMessage);
             return OrchestratorResult.Failure(runId, validationResult.ErrorMessage ?? "Validation failed");
         }
+
+        _logger.LogInformation(
+            "Validation passed: repo={Repository}, issue={IssueNumber}, runId={RunId}",
+            issueCommentEvent.Repository,
+            issueCommentEvent.IssueNumber,
+            runId);
 
         // 2. Parse task spec from validated issue
         var issue = await gitHubClient.GetIssue(
@@ -140,6 +165,11 @@ public class Orchestrator
 
         if (issue is null)
         {
+            _logger.LogWarning(
+                "Issue not found: repo={Repository}, issue={IssueNumber}, runId={RunId}",
+                issueCommentEvent.Repository,
+                issueCommentEvent.IssueNumber,
+                runId);
             return OrchestratorResult.Failure(runId, "Issue not found");
         }
 
@@ -153,6 +183,11 @@ public class Orchestrator
 
         if (string.IsNullOrWhiteSpace(description))
         {
+            _logger.LogWarning(
+                "Task description missing: repo={Repository}, issue={IssueNumber}, runId={RunId}",
+                issueCommentEvent.Repository,
+                issueCommentEvent.IssueNumber,
+                runId);
             return OrchestratorResult.Failure(runId, "Task description missing: provide text after /ai start or set Acceptance Criteria in issue");
         }
 
@@ -169,6 +204,11 @@ public class Orchestrator
             constraints);
 
         // 3. Claim the task
+        _logger.LogInformation(
+            "Claiming task: repo={Repository}, issue={IssueNumber}, runId={RunId}",
+            issueCommentEvent.Repository,
+            issueCommentEvent.IssueNumber,
+            runId);
         var taskClaimService = new TaskClaimService();
         var claimResult = await taskClaimService.ClaimAsync(
             gitHubClient,
@@ -180,22 +220,56 @@ public class Orchestrator
 
         if (!claimResult.IsValid)
         {
+            _logger.LogWarning(
+                "Claim failed: repo={Repository}, issue={IssueNumber}, runId={RunId}, error={Error}",
+                issueCommentEvent.Repository,
+                issueCommentEvent.IssueNumber,
+                runId,
+                claimResult.ErrorMessage);
             return OrchestratorResult.Failure(runId, claimResult.ErrorMessage ?? "Claim failed");
         }
 
         if (claimResult.IsAlreadyClaimed)
         {
+            _logger.LogInformation(
+                "Task already claimed: repo={Repository}, issue={IssueNumber}, runId={RunId}",
+                issueCommentEvent.Repository,
+                issueCommentEvent.IssueNumber,
+                runId);
             return OrchestratorResult.AlreadyClaimedResult(runId);
         }
 
         // 4. Plan the task execution
+        _logger.LogInformation(
+            "Planning task run: repo={Repository}, issue={IssueNumber}, runId={RunId}",
+            issueCommentEvent.Repository,
+            issueCommentEvent.IssueNumber,
+            runId);
         var planResult = TaskRunPlanner.Plan(task, DateTimeOffset.UtcNow);
         if (!planResult.IsValid || planResult.Plan is null)
         {
+            _logger.LogWarning(
+                "Planning failed: repo={Repository}, issue={IssueNumber}, runId={RunId}, error={Error}",
+                issueCommentEvent.Repository,
+                issueCommentEvent.IssueNumber,
+                runId,
+                planResult.ErrorMessage);
             return OrchestratorResult.Failure(runId, planResult.ErrorMessage ?? "Planning failed");
         }
 
+        _logger.LogInformation(
+            "Planning complete: repo={Repository}, issue={IssueNumber}, runId={RunId}, repoCount={RepoCount}",
+            issueCommentEvent.Repository,
+            issueCommentEvent.IssueNumber,
+            runId,
+            planResult.Plan.Repositories.Count);
+
         // 5. Execute the task (create branches and PRs)
+        _logger.LogInformation(
+            "Executing task run: repo={Repository}, issue={IssueNumber}, runId={RunId}",
+            issueCommentEvent.Repository,
+            issueCommentEvent.IssueNumber,
+            runId);
         var executionResult = await TaskRunExecutor.ExecuteAsync(
             gitHubClient,
             task,
@@ -203,6 +277,11 @@ public class Orchestrator
             cancellationToken);
 
         // 6. Post report comment back to the issue
+        _logger.LogInformation(
+            "Posting execution report: repo={Repository}, issue={IssueNumber}, runId={RunId}",
+            issueCommentEvent.Repository,
+            issueCommentEvent.IssueNumber,
+            runId);
         var reportService = new IssueCommentReportService();
         var summary = $"Task execution completed for run `{runId}`.";
         var testInstructions = task.AcceptanceCriteria ?? "Review the PRs and verify changes meet the task requirements.";
@@ -219,6 +298,28 @@ public class Orchestrator
             riskNotes,
             cancellationToken);
 
+        _logger.LogInformation(
+            "Orchestration completed: repo={Repository}, issue={IssueNumber}, runId={RunId}, resultCount={ResultCount}",
+            issueCommentEvent.Repository,
+            issueCommentEvent.IssueNumber,
+            runId,
+            executionResult.Results.Count);
+
         return OrchestratorResult.Success(runId, executionResult);
+    }
+
+    private sealed class NullOrchestratorLogger : IOrchestratorLogger
+    {
+        public void LogInformation(string message, params object?[] args)
+        {
+        }
+
+        public void LogWarning(string message, params object?[] args)
+        {
+        }
+
+        public void LogError(Exception exception, string message, params object?[] args)
+        {
+        }
     }
 }
