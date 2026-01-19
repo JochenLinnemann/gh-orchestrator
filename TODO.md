@@ -178,7 +178,7 @@ Tasks (in order)
 
 ---
 
-## 🟧 Plan 15: Setup, configuration, and runbooks (complete v0)
+## ✅ Plan 15: Setup, configuration, and runbooks (complete v0)
 
 Goal: Ensure local/manual setup is fully documented and operable.
 

@@ -90,7 +90,42 @@ The expected local workflow is:
    - project state updates
    - pull requests created by the orchestrator
 
-Exact commands and configuration options will be documented once the implementation stabilizes.
+### Configuration
+
+The host reads configuration from environment variables or an `appsettings.Development.json`
+file (via standard .NET configuration providers).
+
+Required configuration keys:
+
+- `GH_APP_ID` — GitHub App ID (integer)
+- `GH_APP_PRIVATE_KEY_PATH` — Path to GitHub App private key file (PEM format)
+  - Alternative: `GH_APP_PRIVATE_KEY` — Raw PEM contents
+- `GH_WEBHOOK_SECRET` — Webhook secret configured in the GitHub App
+- `GH_ALLOWED_ORG` — Organization name where the app is installed (authorization check)
+- `GH_PROJECT_ID` — GitHub Projects V2 **project number** from the URL
+
+#### Example `appsettings.Development.json` (do not commit)
+
+```json
+{
+  "GH_APP_ID": "123456",
+  "GH_APP_PRIVATE_KEY_PATH": "/absolute/path/to/gh-app-key.pem",
+  "GH_WEBHOOK_SECRET": "your-webhook-secret",
+  "GH_ALLOWED_ORG": "ExampleOrganization",
+  "GH_PROJECT_ID": "1"
+}
+```
+
+### Run commands
+
+From the repository root:
+
+```bash
+cd src/GhOrchestrator.Host
+dotnet run
+```
+
+The host listens on `http://localhost:5000` by default and expects webhook POSTs to `/webhook`.
 
 ---
 
@@ -134,7 +169,7 @@ No secrets should be committed to this repository.
 
 > If you use a personal repo or project, the app will not have access and authentication will fail.
 
-### 2) Expose a local webhook receiver
+### 3) Expose a local webhook receiver
 
 Use a tunneling tool to expose your local receiver (examples: ngrok, smee.io).
 
@@ -145,7 +180,7 @@ ngrok http 5000
 
 Use the generated HTTPS URL as the GitHub App webhook URL.
 
-### 3) Configure required environment variables
+### 4) Configure required environment variables
 
 The core config loader expects these variables:
 
@@ -176,7 +211,7 @@ export GH_ALLOWED_ORG="ExampleOrganization"
 export GH_PROJECT_ID="1"  # Project number from URL, not node ID
 ```
 
-### 4) Run the orchestrator locally
+### 5) Run the orchestrator locally
 
 Start your local webhook receiver (implementation-specific) and ensure it:
 
@@ -191,7 +226,7 @@ dotnet run
 
 The app will start listening on `http://localhost:5000`. Your tunnel (ngrok, etc.) should forward to this port.
 
-### 5) Trigger `/ai start`
+### 6) Trigger `/ai start`
 
 1. Create or use a test issue in the organization repository (not a personal fork).
 2. Ensure the issue is added to your organization's Projects V2 board.
