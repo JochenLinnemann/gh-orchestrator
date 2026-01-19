@@ -211,12 +211,128 @@ Tasks (in order)
 
 ---
 
+## 🟧 Plan 19: AI Worker integration interface (execution boundary)
+
+Goal: Define the contract between orchestrator and AI worker without assuming a specific implementation.
+
+Tasks (in order)
+1. (agent) Create `IAIWorker` interface:
+   - Input: task spec, repo list, acceptance criteria, constraints, definition of done
+   - Output: per-repo execution result (changes applied, files modified, summary)
+2. (agent) Create `AIWorkerRequest` record capturing task context, repositories, policies, and execution constraints.
+3. (agent) Create `AIWorkerResult` record capturing per-repo outcome (success/failure, files changed, execution log).
+4. (agent) Add unit tests for interface contracts (no external calls).
+5. (human) Review interface design against Playbook 3.4 and confirm extensibility for multiple AI providers.
+
+---
+
+## 🟧 Plan 20: Worker invocation wiring (stub implementation)
+
+Goal: Wire the AI worker interface into the orchestration flow without real execution.
+
+Tasks (in order)
+1. (agent) Add `IAIWorker` parameter to `TaskRunExecutor.ExecuteAsync()`.
+2. (agent) Add a stub `MockAIWorker` that logs but does not execute (returns empty result).
+3. (agent) Update `ProcessTaskAsync()` flow: after claim & plan → invoke worker → capture results → apply to branches → create PRs.
+4. (agent) Add tests for stub invocation and result handling.
+5. (human) Manual test: trigger `/ai start` and confirm worker is called (check logs) but no actual code changes occur.
+
+---
+
+## 🟧 Plan 21: Prompt engineering and worker payload builder
+
+Goal: Package task context into a well-structured, safe prompt for the AI worker.
+
+Tasks (in order)
+1. (agent) Create `AIPromptBuilder` class that formats:
+   - Task title and description
+   - Acceptance criteria and constraints
+   - Repository context (file structure, language, key files)
+   - Policies (security, naming, testing, CI/CD)
+   - Definition of Done and success criteria
+2. (agent) Add tests for prompt structure and escaping (prevent injection).
+3. (human) Review prompt against `ai/prompts/coding.md` and PLAYBOOK safety policies.
+4. (human) Coordinate with AI policy team if applicable (bias, hallucination, risk).
+
+---
+
+## 🟧 Plan 22: Real AI worker implementation (OpenAI/Claude integration)
+
+Goal: Implement a working AI worker using OpenAI or Claude API.
+
+Tasks (in order)
+1. (agent) Choose AI provider and add SDK dependency (with justification in DECISIONS.md).
+2. (agent) Implement `OpenAIWorker` or `ClaudeWorker` class:
+   - Call API with structured prompt
+   - Parse response (code, file paths, modifications)
+   - Return `AIWorkerResult` with per-file changes
+3. (agent) Add configuration for API keys, model selection, timeout, and retry logic.
+4. (agent) Add tests using recorded API responses (no live calls in CI).
+5. (human) Manual test: run a small task against real API; validate code quality and safety.
+6. (human) Review security: no secrets in logs, safe error handling, rate limit awareness.
+
+**Security notes:** Store API keys in environment variables only, never in code or config files.
+
+---
+
+## 🟧 Plan 23: Git operations for AI-generated changes
+
+Goal: Apply AI worker output (code changes) to branches before PR creation.
+
+Tasks (in order)
+1. (agent) Create `GitOperations` helper class with:
+   - Clone/fetch repo (shallow, with auth)
+   - Checkout working branch
+   - Apply file changes (create, modify, delete)
+   - Commit with metadata (run ID, author, AI attribution)
+   - Push to remote
+2. (agent) Add tests for file operations (in-memory or temp directory, no real repos).
+3. (human) Review commit messages for clarity and audit trail (include run ID).
+4. (human) Security review: validate file paths prevent directory traversal, handle binary files safely.
+
+---
+
+## 🟧 Plan 24: Worker result validation and quality gates
+
+Goal: Validate AI output before opening PRs; catch obvious issues early.
+
+Tasks (in order)
+1. (agent) Add post-execution checks:
+   - Files changed match declared repos
+   - No destructive patterns (large deletions, schema changes)
+   - Code conforms to basic linting (if possible without full toolchain)
+   - Commit is signed or attributable
+2. (agent) Add `WorkerResultValidator` with clear rejection reasons.
+3. (agent) If validation fails, close the branch (do not open PR) and report back with failure reason.
+4. (agent) Add tests for validation rules and error messaging.
+5. (human) Review validation rules against PLAYBOOK safety policies and define thresholds (e.g., max % of files changed).
+
+---
+
+## 🟧 Plan 25: Execution reporting and AI attribution
+
+Goal: Update issue comment reports to include AI execution details and confidence signals.
+
+Tasks (in order)
+1. (agent) Extend `IssueCommentReportFormatter` to include:
+   - AI model used (e.g., "Claude 3 Sonnet")
+   - Execution time and token usage (if available)
+   - Files changed per repo
+   - Any validation warnings or partial failures
+   - Link to execution trace or logs (if available)
+2. (agent) Update report body to highlight unchanged repos (useful for multi-repo tasks).
+3. (agent) Add "confidence" indicator (optional; depends on worker output).
+4. (agent) Add tests for updated report formatting.
+5. (human) Manual test: review generated report for clarity, completeness, and user-facing tone.
+
+---
+
 ## 🟧 Plan 17: v0 release criteria and cutover
 
 Goal: Define and meet acceptance criteria for a “functional v0”.
 
 Tasks (in order)
-1. (human) Define v0 acceptance in `ROADMAP.md`: one Issue → claim → branches → PRs → report.
+1. (human) Define v0 acceptance in `ROADMAP.md`: one Issue → claim → branches → PRs with AI-generated changes → report.
 2. (agent) Ensure tests cover Critical Path; mark non-v0 tests as pending where appropriate.
 3. (human) Execute Plan 9 with real repos; record outcomes and gaps.
 4. (human) Create ADRs for any scope changes discovered.
@@ -224,6 +340,7 @@ Tasks (in order)
 **Wiring notes:**
 - Testing and documentation; no new wiring required.
 - Clean up obsolete methods in `Orchestrator.cs`: `ExecuteTask()` and `ReportResult()` (lines 99-111) superseded by `ProcessTaskAsync()`.
+- Update v0 definition in PLAYBOOK to clarify: PRs must contain AI-generated code changes, not empty branches.
 
 ---
 
