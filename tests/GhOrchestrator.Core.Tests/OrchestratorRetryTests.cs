@@ -9,7 +9,16 @@ public class OrchestratorRetryTests
         var issue = new GitHubIssue(
             42,
             "Test issue",
-            "Repositories:\n- octo-org/octo-repo",
+            """
+            ## Repositories
+            - octo-org/octo-repo
+
+            ## Acceptance Criteria
+            - Do the thing
+
+            ## Constraints
+            - No schema changes
+            """,
             true,
             "https://example.com/issues/42");
         var snapshot = new ProjectTaskStateSnapshot(
