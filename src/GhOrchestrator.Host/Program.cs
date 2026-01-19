@@ -11,7 +11,6 @@ var jwtProvider = new GitHubAppJwtProvider(hostConfiguration.AppId, hostConfigur
 var tokenCache = new GitHubInstallationTokenCache();
 var installationTokenProvider = new GitHubInstallationTokenProvider(httpClient, jwtProvider, tokenCache);
 var gitHubClient = new GitHubClient(httpClient, installationTokenProvider);
-var taskClaimService = new TaskClaimService();
 var orchestrator = new Orchestrator();
 
 var app = builder.Build();
@@ -41,17 +40,17 @@ app.MapPost("/webhook", async (HttpRequest request) =>
 
         app.Logger.LogInformation("Received webhook: event={Event}, signature={Signature}, bodyLength={Length}", eventName, signatureHeader, body.Length);
 
-        var result = webhookHandler.Handle(body, signatureHeader, hostConfiguration.WebhookSecret);
-        if (!result.IsValid || result.Event is null)
+        var webhookResult = webhookHandler.Handle(body, signatureHeader, hostConfiguration.WebhookSecret);
+        if (!webhookResult.IsValid || webhookResult.Event is null)
         {
-            if (string.Equals(result.ErrorMessage, "Webhook signature validation failed", StringComparison.OrdinalIgnoreCase))
+            if (string.Equals(webhookResult.ErrorMessage, "Webhook signature validation failed", StringComparison.OrdinalIgnoreCase))
             {
                 app.Logger.LogWarning("Webhook signature verification failed");
                 return Results.Unauthorized();
             }
 
-            app.Logger.LogWarning("Failed to parse webhook payload: {Error}", result.ErrorMessage);
-            return Results.BadRequest(result.ErrorMessage ?? "Invalid payload");
+            app.Logger.LogWarning("Failed to parse webhook payload: {Error}", webhookResult.ErrorMessage);
+            return Results.BadRequest(webhookResult.ErrorMessage ?? "Invalid payload");
         }
 
         app.Logger.LogInformation("Signature verification passed");
@@ -69,7 +68,7 @@ app.MapPost("/webhook", async (HttpRequest request) =>
             return Results.Ok(new { status = "Event received but ignored (action not 'created')" });
         }
 
-        var @event = result.Event;
+        var @event = webhookResult.Event;
         app.Logger.LogInformation("Checking org authorization: repository={Repository}, allowedOrg={AllowedOrg}", @event.Repository, hostConfiguration.AllowedOrg);
         if (!IsAllowedOrg(@event.Repository, hostConfiguration.AllowedOrg))
         {
@@ -80,115 +79,37 @@ app.MapPost("/webhook", async (HttpRequest request) =>
         app.Logger.LogInformation("Parsed event: repo={Repo}, issue={Issue}, author={Author}, body={Body}", @event.Repository, @event.IssueNumber, @event.CommentAuthor, @event.CommentBody);
         var runId = RunIdFormatter.Format(@event.IssueNumber, DateTimeOffset.UtcNow);
 
-        // Validate the task first (before claiming)
-        TaskValidationResult validationResult;
+        // Orchestrate the full task flow
+        OrchestratorResult result;
         try
         {
-            validationResult = await orchestrator.ProcessIssueCommentAsync(
+            result = await orchestrator.ProcessTaskAsync(
                 gitHubClient,
                 @event,
-                request.HttpContext.RequestAborted);
-        }
-        catch (Exception ex)
-        {
-            app.Logger.LogError(ex, "Unexpected error while validating task");
-            return Results.StatusCode(500);
-        }
-
-        if (!validationResult.IsValid)
-        {
-            app.Logger.LogWarning("Task validation failed: {Error}", validationResult.ErrorMessage);
-            return Results.BadRequest(new { status = "Validation failed", error = validationResult.ErrorMessage });
-        }
-
-        // Parse task spec from validated issue
-        var issue = await gitHubClient.GetIssue(@event.Repository, @event.IssueNumber, request.HttpContext.RequestAborted);
-        if (issue is null)
-        {
-            app.Logger.LogError("Issue not found");
-            return Results.NotFound(new { status = "Issue not found" });
-        }
-
-        var description = CommandParser.ParseAiStartCommand(@event.CommentBody);
-        if (description is null)
-        {
-            app.Logger.LogError("Command parsing failed after validation");
-            return Results.StatusCode(500);
-        }
-
-        var repos = CommandParser.ParseRepositories(issue.Body ?? string.Empty);
-        var acceptanceCriteria = CommandParser.ParseAcceptanceCriteria(issue.Body ?? string.Empty);
-        var constraints = CommandParser.ParseConstraints(issue.Body ?? string.Empty);
-        var task = new TaskSpec(
-            @event.IssueNumber,
-            @event.Repository,
-            issue.Title,
-            description,
-            repos,
-            @event.CommentAuthor,
-            acceptanceCriteria,
-            constraints);
-
-        // Claim the task now that it's validated
-        TaskClaimResult claimResult;
-        try
-        {
-            claimResult = await taskClaimService.ClaimAsync(
-                gitHubClient,
-                @event.Repository,
                 hostConfiguration.ProjectId,
-                @event.IssueNumber,
                 runId,
-                cancellationToken: request.HttpContext.RequestAborted);
-        }
-        catch (Exception ex)
-        {
-            app.Logger.LogError(ex, "Unexpected error while claiming task");
-            return Results.StatusCode(500);
-        }
-
-        if (!claimResult.IsValid)
-        {
-            app.Logger.LogWarning("Task claim failed: {Error}", claimResult.ErrorMessage);
-            return Results.BadRequest(new { status = "Claim failed", error = claimResult.ErrorMessage, runId });
-        }
-
-        if (claimResult.IsAlreadyClaimed)
-        {
-            app.Logger.LogInformation("Task already claimed for run {RunId}", runId);
-            return Results.Ok(new { status = "Already claimed", runId });
-        }
-
-        app.Logger.LogInformation("Task claimed with {UpdateCount} updates for run {RunId}", claimResult.Updates.Count, runId);
-
-        // Plan the task execution
-        var planResult = TaskRunPlanner.Plan(task, DateTimeOffset.UtcNow);
-        if (!planResult.IsValid || planResult.Plan is null)
-        {
-            app.Logger.LogWarning("Task planning failed: {Error}", planResult.ErrorMessage);
-            return Results.BadRequest(new { status = "Planning failed", error = planResult.ErrorMessage, runId });
-        }
-
-        app.Logger.LogInformation("Executing task run {RunId} across {RepoCount} repos", runId, planResult.Plan.Repos.Count);
-
-        // Execute the task (create branches and PRs)
-        TaskRunExecutionResult executionResult;
-        try
-        {
-            executionResult = await TaskRunExecutor.ExecuteAsync(
-                gitHubClient,
-                task,
-                planResult.Plan,
                 request.HttpContext.RequestAborted);
         }
         catch (Exception ex)
         {
-            app.Logger.LogError(ex, "Unexpected error during task execution");
+            app.Logger.LogError(ex, "Unexpected error during orchestration");
             return Results.StatusCode(500);
         }
 
-        var successCount = executionResult.Results.Count(r => r.IsSuccess);
-        var failureCount = executionResult.Results.Count(r => !r.IsSuccess);
+        if (!result.IsSuccess)
+        {
+            app.Logger.LogWarning("Task processing failed: {Error}", result.ErrorMessage);
+            return Results.BadRequest(new { status = "Failed", error = result.ErrorMessage, runId = result.RunId });
+        }
+
+        if (result.AlreadyClaimed)
+        {
+            app.Logger.LogInformation("Task already claimed for run {RunId}", result.RunId);
+            return Results.Ok(new { status = "Already claimed", runId = result.RunId });
+        }
+
+        var successCount = result.ExecutionResult?.Results.Count(r => r.IsSuccess) ?? 0;
+        var failureCount = result.ExecutionResult?.Results.Count(r => !r.IsSuccess) ?? 0;
 
         app.Logger.LogInformation(
             "Task execution completed: {SuccessCount} succeeded, {FailureCount} failed",
@@ -198,10 +119,10 @@ app.MapPost("/webhook", async (HttpRequest request) =>
         return Results.Ok(new
         {
             status = "Executed",
-            runId,
+            runId = result.RunId,
             successCount,
             failureCount,
-            results = executionResult.Results.Select(r => new
+            results = result.ExecutionResult?.Results.Select(r => new
             {
                 r.Repository,
                 r.IsSuccess,

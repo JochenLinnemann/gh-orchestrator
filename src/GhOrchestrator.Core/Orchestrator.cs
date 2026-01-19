@@ -107,4 +107,92 @@ public class Orchestrator
     {
         throw new NotImplementedException("GitHub reporting not yet implemented");
     }
+
+    /// <summary>
+    /// Orchestrate the complete task execution flow: validate, claim, plan, execute.
+    /// </summary>
+    public async Task<OrchestratorResult> ProcessTaskAsync(
+        IGitHubClient gitHubClient,
+        IssueCommentEvent issueCommentEvent,
+        string projectId,
+        string runId,
+        CancellationToken cancellationToken = default)
+    {
+        // 1. Validate the task
+        var validationResult = await ProcessIssueCommentAsync(
+            gitHubClient,
+            issueCommentEvent,
+            cancellationToken);
+
+        if (!validationResult.IsValid)
+        {
+            return OrchestratorResult.Failure(runId, validationResult.ErrorMessage ?? "Validation failed");
+        }
+
+        // 2. Parse task spec from validated issue
+        var issue = await gitHubClient.GetIssue(
+            issueCommentEvent.Repository,
+            issueCommentEvent.IssueNumber,
+            cancellationToken);
+
+        if (issue is null)
+        {
+            return OrchestratorResult.Failure(runId, "Issue not found");
+        }
+
+        var description = CommandParser.ParseAiStartCommand(issueCommentEvent.CommentBody);
+        if (description is null)
+        {
+            return OrchestratorResult.Failure(runId, "Failed to parse /ai start command");
+        }
+
+        var repos = CommandParser.ParseRepositories(issue.Body ?? string.Empty);
+        var acceptanceCriteria = CommandParser.ParseAcceptanceCriteria(issue.Body ?? string.Empty);
+        var constraints = CommandParser.ParseConstraints(issue.Body ?? string.Empty);
+        var task = new TaskSpec(
+            issueCommentEvent.IssueNumber,
+            issueCommentEvent.Repository,
+            issue.Title,
+            description,
+            repos,
+            issueCommentEvent.CommentAuthor,
+            acceptanceCriteria,
+            constraints);
+
+        // 3. Claim the task
+        var taskClaimService = new TaskClaimService();
+        var claimResult = await taskClaimService.ClaimAsync(
+            gitHubClient,
+            issueCommentEvent.Repository,
+            projectId,
+            issueCommentEvent.IssueNumber,
+            runId,
+            cancellationToken);
+
+        if (!claimResult.IsValid)
+        {
+            return OrchestratorResult.Failure(runId, claimResult.ErrorMessage ?? "Claim failed");
+        }
+
+        if (claimResult.IsAlreadyClaimed)
+        {
+            return OrchestratorResult.AlreadyClaimedResult(runId);
+        }
+
+        // 4. Plan the task execution
+        var planResult = TaskRunPlanner.Plan(task, DateTimeOffset.UtcNow);
+        if (!planResult.IsValid || planResult.Plan is null)
+        {
+            return OrchestratorResult.Failure(runId, planResult.ErrorMessage ?? "Planning failed");
+        }
+
+        // 5. Execute the task (create branches and PRs)
+        var executionResult = await TaskRunExecutor.ExecuteAsync(
+            gitHubClient,
+            task,
+            planResult.Plan,
+            cancellationToken);
+
+        return OrchestratorResult.Success(runId, executionResult);
+    }
 }
