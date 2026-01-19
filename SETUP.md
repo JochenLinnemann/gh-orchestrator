@@ -101,17 +101,21 @@ It assumes you have a local webhook receiver that can call the core handler
 (`IssueCommentWebhookHandler`) with the raw payload and signature header.
 No secrets should be committed to this repository.
 
-### 1) Create a GitHub App (minimal permissions)
+### 1) Create a GitHub App (permissions for branch + PR creation)
 
 1. Go to **GitHub Settings → Developer settings → GitHub Apps → New GitHub App**.
 2. Set a **Webhook URL** to your tunnel URL (see step 2) plus your webhook path.
 3. Set a **Webhook secret** (store it securely; you will set `GH_WEBHOOK_SECRET` locally).
 4. Subscribe to the **Issue comment** webhook event.
-5. Set **Permissions** to the minimum needed:
-   - **Issues**: Read-only (needed to receive issue comment events)
-   - **Projects**: Read & write (needed to update task state in your Projects V2 board)
-   - **Metadata**: Read-only (required for all GitHub Apps)
-6. Save the app and **install it on your organization** (not personal account or specific repository).
+5. Set **Permissions** (branch + PR creation requires these):
+   - **Repository permissions**
+     - **Contents**: Read & write (needed to create branches)
+     - **Pull requests**: Read & write (needed to open PRs)
+     - **Issues**: Read (to read issue data)
+     - **Metadata**: Read-only (required)
+   - **Organization permissions**
+     - **Projects**: Read & write (to update Projects V2 fields)
+6. Save the app and **install it on your organization**, and ensure it is installed on **each target repository**.
 
 > **Important:** The app must be installed at the organization level for it to access org projects.
 
@@ -123,6 +127,10 @@ No secrets should be committed to this repository.
    - Do not use a personal fork—it must be under the org
 2. Create a **Projects V2** board in the same organization
 3. Add your test repo's issues to the board (or create test issues in the org)
+
+**Repository prerequisites for Plan 13 (branch + PR):**
+- Each repo must have a **default branch** with at least one commit (cannot create a branch from an empty repo)
+- The GitHub App must be **installed on the repo** with the permissions above
 
 > If you use a personal repo or project, the app will not have access and authentication will fail.
 
@@ -190,6 +198,17 @@ The app will start listening on `http://localhost:5000`. Your tunnel (ngrok, etc
 3. Comment `/ai start` on the issue.
 4. Confirm the receiver logs the parsed event data and signature validation status.
 5. Check the app logs for successful project field updates (Status, AI=running, Run ID).
+
+**Issue formatting required for validation and planning:**
+- Repositories section:
+  - Header: `## Repositories`
+  - Bullet items: `- owner/repo`
+- Acceptance criteria section:
+  - Header: `## Acceptance Criteria`
+  - Bullet items (e.g., `- [ ] Task completed`)
+- Constraints section:
+  - Header: `## Constraints`
+  - Value can be `none` if no constraints
 
 ---
 
