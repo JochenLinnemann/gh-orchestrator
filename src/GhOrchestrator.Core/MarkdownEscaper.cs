@@ -30,7 +30,6 @@ public static class MarkdownEscaper
                 case ')':
                 case '#':
                 case '+':
-                case '-':
                 case '!':
                 case '|':
                 case '>':
