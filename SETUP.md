@@ -234,6 +234,13 @@ The app will start listening on `http://localhost:5000`. Your tunnel (ngrok, etc
 4. Confirm the receiver logs the parsed event data and signature validation status.
 5. Check the app logs for successful project field updates (Status, AI=running, Run ID).
 
+#### Validation checklist (manual)
+
+- Issue comment appears with a run summary.
+- Project fields update to `In Progress` and `AI=running` with a Run ID value.
+- One branch and one PR are created per repository listed in the issue.
+- The report comment includes PR links and any reported risks.
+
 **Issue formatting required for validation and planning:**
 - Repositories section:
   - Header: `## Repositories`
