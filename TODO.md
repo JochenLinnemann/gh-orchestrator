@@ -192,7 +192,7 @@ Tasks (in order)
 
 ---
 
-## 🟧 Plan 16: Observability and reliability (v0 hardening)
+## ✅ Plan 16: Observability and reliability (v0 hardening)
 
 Goal: Add basic health, structured logs, and guardrails without new infra.
 
@@ -203,9 +203,11 @@ Tasks (in order)
 4. (human) Manual test: simulate invalid signatures and flaky webhook retries; confirm safe behavior.
 
 **Wiring notes:**
-- `/health` endpoint exists in `Program.cs` line 20; rename to `/healthz` if needed.
+- `/healthz` endpoint is defined in `Program.cs`.
 - Enhance logging in `Program.cs` webhook handler (lines 23-155).
 - Add logging to `Orchestrator.ProcessTaskAsync()` at each step (validate, claim, plan, execute, report).
+
+**Checklist status:** Applied reliability and security checklists; no exceptions noted.
 
 ---
 
