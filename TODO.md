@@ -174,6 +174,8 @@ Tasks (in order)
 3. (agent) Add tests for formatter content and escaping.
 4. (human) Manual review: verify clarity and alignment to Playbook 3.6.
 
+**Wiring status:** ✅ Wired in `Orchestrator.ProcessTaskAsync()` after step 5 (execution); calls `IssueCommentReportService.PostReportAsync()`.
+
 ---
 
 ## 🟧 Plan 15: Setup, configuration, and runbooks (complete v0)
@@ -185,6 +187,8 @@ Tasks (in order)
 2. (agent) Add a quick-start in `README.md` linking to setup and manual test steps.
 3. (human) Validate setup instructions end-to-end with tunnel tooling and a test GitHub App.
 4. (human) Update `ops/runbooks.md` with webhook retry handling and common failure modes.
+
+**Wiring notes:** Documentation only; reference `GitHubHostConfiguration.cs` and `Program.cs`.
 
 ---
 
@@ -198,6 +202,11 @@ Tasks (in order)
 3. (agent) Apply `ai/checklists/reliability.md` and `ai/checklists/security.md`; document any intentional exceptions.
 4. (human) Manual test: simulate invalid signatures and flaky webhook retries; confirm safe behavior.
 
+**Wiring notes:**
+- `/health` endpoint exists in `Program.cs` line 20; rename to `/healthz` if needed.
+- Enhance logging in `Program.cs` webhook handler (lines 23-155).
+- Add logging to `Orchestrator.ProcessTaskAsync()` at each step (validate, claim, plan, execute, report).
+
 ---
 
 ## 🟧 Plan 17: v0 release criteria and cutover
@@ -210,6 +219,10 @@ Tasks (in order)
 3. (human) Execute Plan 9 with real repos; record outcomes and gaps.
 4. (human) Create ADRs for any scope changes discovered.
 
+**Wiring notes:**
+- Testing and documentation; no new wiring required.
+- Clean up obsolete methods in `Orchestrator.cs`: `ExecuteTask()` and `ReportResult()` (lines 99-111) superseded by `ProcessTaskAsync()`.
+
 ---
 
 ## ⏭️ Plan 18: Post-v0 refinements (later)
@@ -219,6 +232,8 @@ Goal: Capture future enhancements without expanding v0.
 Tasks (in order)
 1. (human) Document candidates: label triggers, `/ai plan` mode, queue/persistence, CI-fix loop.
 2. (human) Prioritize after v0 feedback; keep `DECISIONS.md` up to date.
+
+**Wiring notes:** Future work; no immediate wiring required.
 
 ---
 
@@ -231,3 +246,8 @@ Tasks (in order)
 2. (human) Add issue to the Project and confirm required fields exist.
 3. (human) Comment `/ai start` and verify end-to-end behavior: validation, claim, PRs, and report.
 4. (human) Report results and any discrepancies back to the agent.
+
+**Wiring notes:**
+- Manual testing only; all wiring complete as of Plan 14.
+- Entry point: `POST /webhook` in `Program.cs` → `Orchestrator.ProcessTaskAsync()`.
+- Full flow: webhook → parse → validate → claim → plan → execute → report.
