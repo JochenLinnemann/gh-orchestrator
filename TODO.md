@@ -235,11 +235,12 @@ Tasks (in order)
 2. (agent) Add a stub `MockAIWorker` that logs but does not execute (returns empty result).
 3. (agent) Update `ProcessTaskAsync()` flow: after claim & plan → invoke worker → capture results → apply to branches → create PRs.
 4. (agent) Add tests for stub invocation and result handling.
-5. (human) Manual test: trigger `/ai start` and confirm worker is called (check logs) but no actual code changes occur.
+5. (agent) Define how `AIPromptPolicies` are sourced (config, defaults, or repo metadata) and wire into the worker prompt request.
+6. (human) Manual test: trigger `/ai start` and confirm worker is called (check logs) but no actual code changes occur.
 
 ---
 
-## 🟧 Plan 21: Prompt engineering and worker payload builder
+## ✅ Plan 21: Prompt engineering and worker payload builder
 
 Goal: Package task context into a well-structured, safe prompt for the AI worker.
 
