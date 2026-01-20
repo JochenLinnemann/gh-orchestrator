@@ -44,16 +44,30 @@ public static class TaskRunExecutor
 
     public static async Task<TaskRunExecutionResult> ExecuteAsync(
         IGitHubClient gitHubClient,
+        IAIWorker aiWorker,
         TaskSpec task,
         TaskRunPlan plan,
         CancellationToken cancellationToken = default)
     {
         if (gitHubClient is null)
             throw new ArgumentNullException(nameof(gitHubClient));
+        if (aiWorker is null)
+            throw new ArgumentNullException(nameof(aiWorker));
         if (task is null)
             throw new ArgumentNullException(nameof(task));
         if (plan is null)
             throw new ArgumentNullException(nameof(plan));
+
+        var policies = AIPromptPolicyProvider.Default;
+        var workerRequest = new AIWorkerRequest(
+            task,
+            plan.Repos,
+            task.AcceptanceCriteria,
+            task.Constraints,
+            DefinitionOfDone: null,
+            AIPromptPolicyProvider.ToDictionary(policies),
+            new Dictionary<string, string>());
+        var workerResult = await aiWorker.ExecuteAsync(workerRequest, cancellationToken);
 
         var results = new List<RepoExecutionResult>(plan.Repos.Count);
         var shortSlug = TaskSlugFormatter.Format(task.Title, task.Description);
@@ -79,7 +93,7 @@ public static class TaskRunExecutor
             }
         }
 
-        return new TaskRunExecutionResult(results);
+        return new TaskRunExecutionResult(results, workerResult);
     }
 
     private static PullRequestRequest BuildPullRequestRequest(

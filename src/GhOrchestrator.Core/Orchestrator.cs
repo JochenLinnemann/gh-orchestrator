@@ -8,10 +8,12 @@ namespace GhOrchestrator.Core;
 public class Orchestrator
 {
     private readonly IOrchestratorLogger _logger;
+    private readonly IAIWorker _aiWorker;
 
-    public Orchestrator(IOrchestratorLogger? logger = null)
+    public Orchestrator(IOrchestratorLogger? logger = null, IAIWorker? aiWorker = null)
     {
         _logger = logger ?? new NullOrchestratorLogger();
+        _aiWorker = aiWorker ?? new MockAIWorker(_logger);
     }
 
     /// <summary>
@@ -272,6 +274,7 @@ public class Orchestrator
             runId);
         var executionResult = await TaskRunExecutor.ExecuteAsync(
             gitHubClient,
+            _aiWorker,
             task,
             planResult.Plan,
             cancellationToken);

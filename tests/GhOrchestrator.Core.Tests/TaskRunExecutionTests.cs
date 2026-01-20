@@ -24,10 +24,12 @@ public class TaskRunExecutionTests
         {
             ["org/service-a"] = "main"
         });
+        var worker = new FakeAIWorker();
 
-        var result = await TaskRunExecutor.ExecuteAsync(client, ValidTask, plan);
+        var result = await TaskRunExecutor.ExecuteAsync(client, worker, ValidTask, plan);
 
         Assert.Single(result.Results);
+        Assert.NotNull(result.WorkerResult);
         Assert.Equal("main", client.BranchesCreated[0].BaseBranch);
         Assert.Equal("ai/run-42-20260115083045/improve-logging", client.BranchesCreated[0].NewBranch);
         Assert.Equal("AI: Improve logging", client.PullRequests[0].Request.Title);
@@ -50,13 +52,38 @@ public class TaskRunExecutionTests
                 ["org/service-b"] = "develop"
             },
             failingRepo: "org/service-a");
+        var worker = new FakeAIWorker();
 
-        var result = await TaskRunExecutor.ExecuteAsync(client, ValidTask, plan);
+        var result = await TaskRunExecutor.ExecuteAsync(client, worker, ValidTask, plan);
 
         Assert.Equal(2, result.Results.Count);
         Assert.Single(result.Results, item => item.Repository == "org/service-a" && !item.IsSuccess);
         Assert.Single(result.Results, item => item.Repository == "org/service-b" && item.IsSuccess);
         Assert.Single(client.PullRequests);
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_CapturesAIWorkerResult()
+    {
+        var plan = new TaskRunPlan(
+            RunId: "run-42-20260115083045",
+            Repos: new[] { "org/service-a" },
+            Steps: Array.Empty<TaskRunStep>());
+        var client = new FakeGitHubClient(new Dictionary<string, string>
+        {
+            ["org/service-a"] = "main"
+        });
+        var expectedResult = new AIWorkerResult(new[]
+        {
+            new AIWorkerRepoResult("org/service-a", true, Array.Empty<string>(), "log", null)
+        });
+        var worker = new FakeAIWorker(expectedResult);
+
+        var result = await TaskRunExecutor.ExecuteAsync(client, worker, ValidTask, plan);
+
+        Assert.Equal(expectedResult, result.WorkerResult);
+        Assert.NotNull(worker.LastRequest);
+        Assert.Equal("org/service-a", worker.LastRequest!.Repositories[0]);
     }
 
     private sealed class FakeGitHubClient : IGitHubClient
@@ -122,6 +149,24 @@ public class TaskRunExecutionTests
         {
             PullRequests.Add((repository, request));
             return Task.FromResult(new PullRequestLink(repository, $"https://example.com/{repository}/pulls/1"));
+        }
+    }
+
+    private sealed class FakeAIWorker : IAIWorker
+    {
+        private readonly AIWorkerResult _result;
+
+        public FakeAIWorker(AIWorkerResult? result = null)
+        {
+            _result = result ?? new AIWorkerResult(Array.Empty<AIWorkerRepoResult>());
+        }
+
+        public AIWorkerRequest? LastRequest { get; private set; }
+
+        public Task<AIWorkerResult> ExecuteAsync(AIWorkerRequest request, CancellationToken cancellationToken = default)
+        {
+            LastRequest = request;
+            return Task.FromResult(_result);
         }
     }
 }
