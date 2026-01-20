@@ -239,7 +239,7 @@ Tasks (in order)
 
 ---
 
-## 🟧 Plan 21: Prompt engineering and worker payload builder
+## ✅ Plan 21: Prompt engineering and worker payload builder
 
 Goal: Package task context into a well-structured, safe prompt for the AI worker.
 
