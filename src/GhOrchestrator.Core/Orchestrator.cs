@@ -292,14 +292,26 @@ public class Orchestrator
             ? new[] { $"Constraints: {task.Constraints}" } 
             : Array.Empty<string>();
 
-        await reportService.PostReportAsync(
-            gitHubClient,
-            task,
-            summary,
-            testInstructions,
-            executionResult.Results,
-            riskNotes,
-            cancellationToken);
+        try
+        {
+            await reportService.PostReportAsync(
+                gitHubClient,
+                task,
+                summary,
+                testInstructions,
+                executionResult.Results,
+                riskNotes,
+                cancellationToken);
+        }
+        catch (TaskCanceledException ex)
+        {
+            _logger.LogWarning(
+                "Posting execution report canceled: repo={Repository}, issue={IssueNumber}, runId={RunId}, error={Error}",
+                issueCommentEvent.Repository,
+                issueCommentEvent.IssueNumber,
+                runId,
+                ex.Message);
+        }
 
         _logger.LogInformation(
             "Orchestration completed: repo={Repository}, issue={IssueNumber}, runId={RunId}, resultCount={ResultCount}",
