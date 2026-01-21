@@ -15,6 +15,9 @@ public class OrchestratorReportTests
 
             ## Acceptance Criteria
             - Do the thing
+
+            ## Constraints
+            - none
             """,
             true,
             "https://example.com/issues/42");
