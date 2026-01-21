@@ -39,7 +39,10 @@ public sealed class OpenAIWorker : IAIWorker
 
             try
             {
-                var completion = await _chatClient.CompleteChatAsync(messages, timeoutCts.Token);
+                var completion = await _chatClient.CompleteChatAsync(
+                    messages,
+                    new ChatCompletionOptions(),
+                    timeoutCts.Token);
                 var responseText = completion.Content.FirstOrDefault()?.Text ?? string.Empty;
                 return OpenAIWorkerResponseParser.Parse(responseText, request.Repositories);
             }
