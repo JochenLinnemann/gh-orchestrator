@@ -2,7 +2,9 @@ using System.Linq;
 
 namespace GhOrchestrator.Core;
 
-public record TaskRunExecutionResult(IReadOnlyList<RepoExecutionResult> Results)
+public record TaskRunExecutionResult(
+    IReadOnlyList<RepoExecutionResult> Results,
+    AIWorkerResult WorkerResult)
 {
     public bool IsSuccessful => Results.All(result => result.IsSuccess);
 

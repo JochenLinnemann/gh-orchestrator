@@ -97,7 +97,7 @@ app.MapPost("/webhook", async (HttpRequest request) =>
                 @event,
                 hostConfiguration.ProjectId,
                 runId,
-                request.HttpContext.RequestAborted);
+                CancellationToken.None);
         }
         catch (Exception ex)
         {

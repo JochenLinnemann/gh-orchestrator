@@ -8,10 +8,12 @@ namespace GhOrchestrator.Core;
 public class Orchestrator
 {
     private readonly IOrchestratorLogger _logger;
+    private readonly IAIWorker _aiWorker;
 
-    public Orchestrator(IOrchestratorLogger? logger = null)
+    public Orchestrator(IOrchestratorLogger? logger = null, IAIWorker? aiWorker = null)
     {
         _logger = logger ?? new NullOrchestratorLogger();
+        _aiWorker = aiWorker ?? new MockAIWorker(_logger);
     }
 
     /// <summary>
@@ -272,6 +274,7 @@ public class Orchestrator
             runId);
         var executionResult = await TaskRunExecutor.ExecuteAsync(
             gitHubClient,
+            _aiWorker,
             task,
             planResult.Plan,
             cancellationToken);
@@ -289,14 +292,26 @@ public class Orchestrator
             ? new[] { $"Constraints: {task.Constraints}" } 
             : Array.Empty<string>();
 
-        await reportService.PostReportAsync(
-            gitHubClient,
-            task,
-            summary,
-            testInstructions,
-            executionResult.Results,
-            riskNotes,
-            cancellationToken);
+        try
+        {
+            await reportService.PostReportAsync(
+                gitHubClient,
+                task,
+                summary,
+                testInstructions,
+                executionResult.Results,
+                riskNotes,
+                cancellationToken);
+        }
+        catch (TaskCanceledException ex)
+        {
+            _logger.LogWarning(
+                "Posting execution report canceled: repo={Repository}, issue={IssueNumber}, runId={RunId}, error={Error}",
+                issueCommentEvent.Repository,
+                issueCommentEvent.IssueNumber,
+                runId,
+                ex.Message);
+        }
 
         _logger.LogInformation(
             "Orchestration completed: repo={Repository}, issue={IssueNumber}, runId={RunId}, resultCount={ResultCount}",

@@ -226,7 +226,7 @@ Tasks (in order)
 
 ---
 
-## 🟧 Plan 20: Worker invocation wiring (stub implementation)
+## ✅ Plan 20: Worker invocation wiring (stub implementation)
 
 Goal: Wire the AI worker interface into the orchestration flow without real execution.
 
