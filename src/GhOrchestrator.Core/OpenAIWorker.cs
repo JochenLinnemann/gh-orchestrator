@@ -95,7 +95,7 @@ public sealed class OpenAIWorker : IAIWorker
             ? "(none provided)"
             : string.Join("\n", request.ExecutionConstraints.Select(constraint => $"- {constraint.Key}: {constraint.Value}"));
 
-        return $$"""
+        return $$$"""
             ## Task
             Title: {request.Task.Title}
             Description: {request.Task.Description}
