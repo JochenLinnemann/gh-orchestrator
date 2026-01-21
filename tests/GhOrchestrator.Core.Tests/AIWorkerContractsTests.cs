@@ -49,7 +49,10 @@ public class AIWorkerContractsTests
         var repoResult = new AIWorkerRepoResult(
             Repository: "org/service-a",
             IsSuccess: true,
-            FilesChanged: new[] { "src/Logging.cs" },
+            FileChanges: new[]
+            {
+                new AIWorkerFileChange("src/Logging.cs", AIWorkerChangeType.Modify, "// content")
+            },
             ExecutionLog: "Applied changes",
             FailureReason: null
         );
@@ -59,7 +62,7 @@ public class AIWorkerContractsTests
         Assert.Single(result.RepoResults);
         Assert.Equal("org/service-a", result.RepoResults[0].Repository);
         Assert.True(result.RepoResults[0].IsSuccess);
-        Assert.Equal("src/Logging.cs", result.RepoResults[0].FilesChanged[0]);
+        Assert.Equal("src/Logging.cs", result.RepoResults[0].FileChanges[0].Path);
         Assert.Equal("Applied changes", result.RepoResults[0].ExecutionLog);
         Assert.Null(result.RepoResults[0].FailureReason);
     }

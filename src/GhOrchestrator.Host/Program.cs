@@ -14,7 +14,8 @@ var gitHubClient = new GitHubClient(httpClient, installationTokenProvider);
 
 var app = builder.Build();
 var orchestratorLogger = new HostOrchestratorLogger(app.Logger);
-var orchestrator = new Orchestrator(orchestratorLogger);
+var aiWorker = BuildAiWorker(orchestratorLogger);
+var orchestrator = new Orchestrator(orchestratorLogger, aiWorker);
 
 // Health check
 app.MapGet("/healthz", () => "OK");
@@ -158,6 +159,21 @@ app.MapPost("/webhook", async (HttpRequest request) =>
 });
 
 app.Run();
+
+static IAIWorker BuildAiWorker(IOrchestratorLogger logger)
+{
+    var validation = OpenAIWorkerConfiguration.TryLoadFromEnvironment(out var configuration);
+    if (validation.IsValid && configuration is not null)
+    {
+        logger.LogInformation("OpenAI worker configured; using model {Model}", configuration.Model);
+        return new OpenAIWorker(configuration, logger);
+    }
+
+    if (!validation.IsValid)
+        logger.LogWarning("OpenAI worker not configured: {Error}", validation.ErrorMessage);
+
+    return new MockAIWorker(logger);
+}
 
 static string? TryGetAction(string payload)
 {
