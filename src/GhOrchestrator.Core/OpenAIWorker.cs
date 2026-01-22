@@ -86,12 +86,6 @@ public sealed class OpenAIWorker : IAIWorker
         // Note: Repository context (language, files, structure) and execution constraints are not
         // available in AIWorkerRequest, so this uses simplified versions.
         // TODO: Refactor to pass AIPromptRequest directly to enable richer prompts.
-        var acceptanceCriteria = request.AcceptanceCriteria is not null
-            ? NormalizeLines(request.AcceptanceCriteria)
-            : Array.Empty<string>();
-        var constraints = request.Constraints is not null
-            ? NormalizeLines(request.Constraints)
-            : Array.Empty<string>();
         var definitionOfDone = request.DefinitionOfDone is not null
             ? NormalizeLines(request.DefinitionOfDone)
             : Array.Empty<string>();

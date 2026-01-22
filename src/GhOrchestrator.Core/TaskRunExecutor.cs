@@ -62,8 +62,6 @@ public static class TaskRunExecutor
         var workerRequest = new AIWorkerRequest(
             task,
             plan.Repos,
-            task.AcceptanceCriteria,
-            task.Constraints,
             DefinitionOfDone: null,
             AIPromptPolicyProvider.ToDictionary(policies),
             new Dictionary<string, string>());
