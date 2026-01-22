@@ -102,16 +102,4 @@ public sealed class OpenAIWorker : IAIWorker
 
         return AIPromptBuilder.Build(promptRequest);
     }
-
-    private static IReadOnlyList<string> NormalizeLines(string? value)
-    {
-        if (string.IsNullOrWhiteSpace(value))
-            return Array.Empty<string>();
-
-        return value
-            .Split('\n')
-            .Select(line => line.Trim())
-            .Where(line => !string.IsNullOrWhiteSpace(line))
-            .ToArray();
-    }
 }
