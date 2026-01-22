@@ -34,9 +34,9 @@ public static class TaskRunExecutor
                 throw new ArgumentException($"Base branch is required for {repo}", nameof(baseBranches));
 
             var branchName = BranchNameFormatter.Format(plan.RunId, shortSlug);
-            var request = BuildPullRequestRequest(task, plan, repo, branchName, baseBranch);
+            var pullRequest = BuildPullRequestRequest(task, plan, repo, branchName, baseBranch);
 
-            plans.Add(new RepoPullRequestPlan(repo, branchName, request));
+            plans.Add(new RepoPullRequestPlan(repo, branchName, pullRequest));
         }
 
         return plans;
@@ -65,31 +65,42 @@ public static class TaskRunExecutor
             policies);
         var workerResult = await aiWorker.ExecuteAsync(workerRequest, cancellationToken);
 
-        var results = new List<RepoExecutionResult>(plan.Repos.Count);
-        var shortSlug = TaskSlugFormatter.Format(task.Title, task.Description);
-
+        // Fetch base branches and build PR plans
+        var baseBranches = new Dictionary<string, string>(plan.Repos.Count);
         foreach (var repo in plan.Repos)
         {
-            var branchName = BranchNameFormatter.Format(plan.RunId, shortSlug);
-            var baseBranch = string.Empty;
-
             try
             {
-                baseBranch = await gitHubClient.GetDefaultBranch(repo, cancellationToken);
-                var request = BuildPullRequestRequest(task, plan, repo, branchName, baseBranch);
-
-                await gitHubClient.CreateBranch(repo, branchName, baseBranch, cancellationToken);
-                var pullRequest = await gitHubClient.CreatePullRequest(repo, request, cancellationToken);
-
-                results.Add(RepoExecutionResult.Success(repo, branchName, baseBranch, pullRequest));
+                baseBranches[repo] = await gitHubClient.GetDefaultBranch(repo, cancellationToken);
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                results.Add(RepoExecutionResult.Failure(repo, branchName, baseBranch, ex.Message));
+                baseBranches[repo] = string.Empty;
             }
         }
 
-        return new TaskRunExecutionResult(results, workerResult);
+        var prPlans = BuildPullRequestPlans(task, plan, baseBranches);
+
+        // Execute branch and PR creation for each plan
+        var executionResults = new List<RepoExecutionResult>(prPlans.Count);
+        foreach (var prPlan in prPlans)
+        {
+            var baseBranch = baseBranches.GetValueOrDefault(prPlan.Repository, string.Empty);
+            
+            try
+            {
+                await gitHubClient.CreateBranch(prPlan.Repository, prPlan.BranchName, baseBranch, cancellationToken);
+                var pullRequest = await gitHubClient.CreatePullRequest(prPlan.Repository, prPlan.PullRequest, cancellationToken);
+
+                executionResults.Add(RepoExecutionResult.Success(prPlan.Repository, prPlan.BranchName, baseBranch, pullRequest));
+            }
+            catch (Exception ex)
+            {
+                executionResults.Add(RepoExecutionResult.Failure(prPlan.Repository, prPlan.BranchName, baseBranch, ex.Message));
+            }
+        }
+
+        return new TaskRunExecutionResult(executionResults, workerResult);
     }
 
     private static PullRequestRequest BuildPullRequestRequest(

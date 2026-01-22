@@ -226,45 +226,7 @@ public static class CommandParser
     /// <returns>Acceptance criteria text, or null if not found.</returns>
     public static string? ParseAcceptanceCriteria(string issueBody)
     {
-        if (string.IsNullOrWhiteSpace(issueBody))
-            return null;
-
-        var criteria = new List<string>();
-        var inCriteriaSection = false;
-
-        foreach (var line in issueBody.Split('\n'))
-        {
-            var trimmedLine = line.Trim();
-
-            // Check for section header (exact match)
-            if (trimmedLine.Equals("## Acceptance Criteria", StringComparison.OrdinalIgnoreCase))
-            {
-                inCriteriaSection = true;
-                continue;
-            }
-
-            // Check for single-line format
-            if (trimmedLine.StartsWith("Acceptance Criteria:", StringComparison.OrdinalIgnoreCase))
-            {
-                var value = line.Substring(line.IndexOf(':') + 1).Trim();
-                return string.IsNullOrWhiteSpace(value) ? null : value;
-            }
-
-            if (inCriteriaSection)
-            {
-                // Stop at any other section header
-                if (trimmedLine.StartsWith("##"))
-                    break;
-
-                // Collect non-empty lines
-                if (!string.IsNullOrWhiteSpace(trimmedLine))
-                {
-                    criteria.Add(trimmedLine);
-                }
-            }
-        }
-
-        return criteria.Count > 0 ? string.Join("\n", criteria) : null;
+        return ParseSectionOrLine(issueBody, "## Acceptance Criteria", "Acceptance Criteria:");
     }
 
     /// <summary>
@@ -282,44 +244,48 @@ public static class CommandParser
     /// <returns>Constraints text, or null if not found.</returns>
     public static string? ParseConstraints(string issueBody)
     {
+        return ParseSectionOrLine(issueBody, "## Constraints", "Constraints:");
+    }
+
+    private static string? ParseSectionOrLine(
+        string issueBody,
+        string sectionHeader,
+        string linePrefix)
+    {
         if (string.IsNullOrWhiteSpace(issueBody))
             return null;
 
-        var constraints = new List<string>();
-        var inConstraintsSection = false;
+        var values = new List<string>();
+        var inSection = false;
 
         foreach (var line in issueBody.Split('\n'))
         {
             var trimmedLine = line.Trim();
 
-            // Check for section header (exact match)
-            if (trimmedLine.Equals("## Constraints", StringComparison.OrdinalIgnoreCase))
+            if (trimmedLine.Equals(sectionHeader, StringComparison.OrdinalIgnoreCase))
             {
-                inConstraintsSection = true;
+                inSection = true;
                 continue;
             }
 
-            // Check for single-line format
-            if (trimmedLine.StartsWith("Constraints:", StringComparison.OrdinalIgnoreCase))
+            if (trimmedLine.StartsWith(linePrefix, StringComparison.OrdinalIgnoreCase))
             {
                 var value = line.Substring(line.IndexOf(':') + 1).Trim();
                 return string.IsNullOrWhiteSpace(value) ? null : value;
             }
 
-            if (inConstraintsSection)
+            if (inSection)
             {
-                // Stop at any other section header
                 if (trimmedLine.StartsWith("##"))
                     break;
 
-                // Collect non-empty lines
                 if (!string.IsNullOrWhiteSpace(trimmedLine))
                 {
-                    constraints.Add(trimmedLine);
+                    values.Add(trimmedLine);
                 }
             }
         }
 
-        return constraints.Count > 0 ? string.Join("\n", constraints) : null;
+        return values.Count > 0 ? string.Join("\n", values) : null;
     }
 }
