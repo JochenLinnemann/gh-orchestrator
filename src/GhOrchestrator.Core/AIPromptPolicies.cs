@@ -7,5 +7,6 @@ public record AIPromptPolicies(
     IReadOnlyList<string> Security,
     IReadOnlyList<string> Naming,
     IReadOnlyList<string> Testing,
-    IReadOnlyList<string> CiCd
+    IReadOnlyList<string> CiCd,
+    IReadOnlyList<string> SuccessCriteria
 );

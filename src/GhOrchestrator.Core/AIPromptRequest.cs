@@ -6,7 +6,5 @@ namespace GhOrchestrator.Core;
 public record AIPromptRequest(
     TaskSpec Task,
     IReadOnlyList<AIPromptRepositoryContext> Repositories,
-    AIPromptPolicies Policies,
-    IReadOnlyList<string> DefinitionOfDone,
-    IReadOnlyList<string> SuccessCriteria
+    AIPromptPolicies Policies
 );

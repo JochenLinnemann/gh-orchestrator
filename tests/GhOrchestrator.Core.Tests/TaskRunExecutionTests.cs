@@ -75,7 +75,7 @@ public class TaskRunExecutionTests
         });
         var expectedResult = new AIWorkerResult(new[]
         {
-            new AIWorkerRepoResult("org/service-a", true, Array.Empty<string>(), "log", null)
+            new AIWorkerRepoResult("org/service-a", true, Array.Empty<AIWorkerFileChange>(), "log", null)
         });
         var worker = new FakeAIWorker(expectedResult);
 

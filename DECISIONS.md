@@ -291,6 +291,28 @@ REST Projects v2 API explicitly documents GitHub App installation token support 
 - GitHub REST API docs: https://docs.github.com/en/rest/projects/projects
 - Limitation analysis: `GITHUB_GRAPHQL_LIMIT.md`
 - RFC: `rfc_unblocking_gh_orchestrator_project_v_2_access.md`
+---
+
+## Decision: Use OpenAI .NET SDK for AI worker integration
+
+**Status:** Accepted  
+**Date:** 2026-01-22  
+
+**Context**  
+Plan 22 requires a real AI worker implementation with structured prompts, retries, and timeouts.  
+Implementing raw HTTP calls would re-create protocol concerns and increase maintenance overhead.
+
+**Decision**  
+Adopt the official OpenAI .NET SDK for v0 AI worker integration.  
+Configuration is sourced from environment variables only, and the worker is optional (fallback to mock when not configured).
+
+**Consequences**  
+- ✅ Leverages a maintained SDK for authentication and request formatting  
+- ✅ Keeps worker implementation small and reviewable  
+- ✅ Explicit configuration and timeouts are enforced  
+- ❌ Adds a new dependency and supply-chain surface area  
+- ❌ Requires OpenAI API credentials at runtime (never stored in repo)
+
 
 ---
 

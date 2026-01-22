@@ -257,7 +257,7 @@ Tasks (in order)
 
 ---
 
-## 🟧 Plan 22: Real AI worker implementation (OpenAI/Claude integration)
+## ✅ Plan 22: Real AI worker implementation (OpenAI/Claude integration)
 
 Goal: Implement a working AI worker using OpenAI or Claude API.
 

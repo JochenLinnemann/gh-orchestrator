@@ -17,9 +17,7 @@ public static class AIPromptBuilder
             throw new ArgumentException("Repositories are required.", nameof(request));
         if (request.Policies is null)
             throw new ArgumentException("Policies are required.", nameof(request));
-        if (request.DefinitionOfDone is null)
-            throw new ArgumentException("Definition of done is required.", nameof(request));
-        if (request.SuccessCriteria is null)
+        if (request.Policies?.SuccessCriteria is null || request.Policies.SuccessCriteria.Count == 0)
             throw new ArgumentException("Success criteria is required.", nameof(request));
 
         var builder = new StringBuilder();
@@ -57,8 +55,34 @@ public static class AIPromptBuilder
         AppendListSection(builder, "Testing", request.Policies.Testing);
         AppendListSection(builder, "CI/CD", request.Policies.CiCd);
 
-        AppendListSection(builder, "Definition of Done", request.DefinitionOfDone);
-        AppendListSection(builder, "Success Criteria", request.SuccessCriteria);
+        AppendListSection(builder, "Success Criteria", request.Policies.SuccessCriteria);
+
+        builder.AppendLine();
+        builder.AppendLine("## Output Schema");
+        builder.AppendLine("Respond with JSON only, matching this schema:");
+        builder.AppendLine("""
+            {
+              "repoResults": [
+                {
+                  "repository": "org/repo",
+                  "summary": "short summary of changes",
+                  "changes": [
+                    {
+                      "path": "path/to/file.cs",
+                      "changeType": "create|modify|delete",
+                      "content": "full file content after change"
+                    }
+                  ]
+                }
+              ]
+            }
+            """);
+
+        builder.AppendLine();
+        builder.AppendLine("## Requirements");
+        builder.AppendLine("- Include one repoResults entry for each repository listed.");
+        builder.AppendLine("- Use empty changes array when no updates are needed.");
+        builder.AppendLine("- Do not include any text outside the JSON.");
 
         return builder.ToString().TrimEnd();
     }

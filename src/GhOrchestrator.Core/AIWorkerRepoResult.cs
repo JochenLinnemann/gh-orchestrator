@@ -3,7 +3,7 @@ namespace GhOrchestrator.Core;
 public record AIWorkerRepoResult(
     string Repository,
     bool IsSuccess,
-    IReadOnlyList<string> FilesChanged,
+    IReadOnlyList<AIWorkerFileChange> FileChanges,
     string? ExecutionLog,
     string? FailureReason
 );

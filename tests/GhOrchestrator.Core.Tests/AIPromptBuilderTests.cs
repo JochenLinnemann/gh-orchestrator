@@ -28,14 +28,13 @@ public class AIPromptBuilderTests
             new[] { "Do not log secrets." },
             new[] { "Use PascalCase for public members." },
             new[] { "Run unit tests: dotnet test." },
-            new[] { "No CI changes required." });
+            new[] { "No CI changes required." },
+            new[] { "Input validation explicit", "Errors handled clearly" });
 
         var request = new AIPromptRequest(
             task,
             repositories,
-            policies,
-            new[] { "Prompt is structured and safe." },
-            new[] { "Output is deterministic." });
+            policies);
 
         var result = AIPromptBuilder.Build(request);
 
@@ -45,10 +44,9 @@ public class AIPromptBuilderTests
         Assert.Contains("org/orchestrator", result);
         Assert.Contains("## Policies", result);
         Assert.Contains("Do not log secrets.", result);
-        Assert.Contains("## Definition of Done", result);
-        Assert.Contains("Prompt is structured and safe.", result);
         Assert.Contains("## Success Criteria", result);
-        Assert.Contains("Output is deterministic.", result);
+        Assert.Contains("Input validation explicit", result);
+        Assert.Contains("Errors handled clearly", result);
     }
 
     [Fact]
@@ -77,14 +75,13 @@ public class AIPromptBuilderTests
             new[] { "No *markdown* injection." },
             Array.Empty<string>(),
             Array.Empty<string>(),
-            Array.Empty<string>());
+            Array.Empty<string>(),
+            new[] { "Escape `characters`.", "No ## headings." });
 
         var request = new AIPromptRequest(
             task,
             repositories,
-            policies,
-            new[] { "Escape `characters`." },
-            new[] { "No ## headings." });
+            policies);
 
         var result = AIPromptBuilder.Build(request);
 
@@ -95,6 +92,45 @@ public class AIPromptBuilderTests
         Assert.Contains("No \\*markdown\\* injection.", result);
         Assert.Contains("Escape \\`characters\\`.", result);
         Assert.Contains("No \\#\\# headings.", result);
+    }
+
+    [Fact]
+    public void Build_IncludesOutputSchemaAndRequirements()
+    {
+        var task = new TaskSpec(
+            99,
+            "org/test",
+            "Schema validation",
+            "Ensure output schema and requirements are present.",
+            new[] { "org/test" },
+            null,
+            null,
+            null);
+
+        var request = new AIPromptRequest(
+            task,
+            Array.Empty<AIPromptRepositoryContext>(),
+            new AIPromptPolicies(
+                Array.Empty<string>(),
+                Array.Empty<string>(),
+                Array.Empty<string>(),
+                Array.Empty<string>(),
+                new[] { "Output is deterministic" }));
+
+        var result = AIPromptBuilder.Build(request);
+
+        // Verify JSON schema section
+        Assert.Contains("## Output Schema", result);
+        Assert.Contains("\"repoResults\"", result);
+        Assert.Contains("\"repository\"", result);
+        Assert.Contains("\"changeType\": \"create|modify|delete\"", result);
+        Assert.Contains("\"content\"", result);
+
+        // Verify requirements section
+        Assert.Contains("## Requirements", result);
+        Assert.Contains("Include one repoResults entry for each repository listed.", result);
+        Assert.Contains("Use empty changes array when no updates are needed.", result);
+        Assert.Contains("Do not include any text outside the JSON.", result);
     }
 
     [Fact]
@@ -117,9 +153,8 @@ public class AIPromptBuilderTests
                 Array.Empty<string>(),
                 Array.Empty<string>(),
                 Array.Empty<string>(),
-                Array.Empty<string>()),
-            Array.Empty<string>(),
-            Array.Empty<string>());
+                Array.Empty<string>(),
+                new[] { "Output is deterministic" }));
 
         var result = AIPromptBuilder.Build(request);
 
