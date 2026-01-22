@@ -17,8 +17,6 @@ public static class AIPromptBuilder
             throw new ArgumentException("Repositories are required.", nameof(request));
         if (request.Policies is null)
             throw new ArgumentException("Policies are required.", nameof(request));
-        if (request.Policies?.DefinitionOfDone is null || request.Policies.DefinitionOfDone.Count == 0)
-            throw new ArgumentException("Definition of done is required.", nameof(request));
         if (request.Policies?.SuccessCriteria is null || request.Policies.SuccessCriteria.Count == 0)
             throw new ArgumentException("Success criteria is required.", nameof(request));
 
@@ -57,7 +55,6 @@ public static class AIPromptBuilder
         AppendListSection(builder, "Testing", request.Policies.Testing);
         AppendListSection(builder, "CI/CD", request.Policies.CiCd);
 
-        AppendListSection(builder, "Definition of Done", request.Policies.DefinitionOfDone);
         AppendListSection(builder, "Success Criteria", request.Policies.SuccessCriteria);
 
         builder.AppendLine();

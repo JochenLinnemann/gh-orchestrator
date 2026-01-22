@@ -7,7 +7,13 @@ public static class AIPromptPolicyProvider
         Array.Empty<string>(),
         Array.Empty<string>(),
         Array.Empty<string>(),
-        new[] { "All tests pass", "Code is committed to branch", "PR is opened" },
-        new[] { "Output is valid JSON", "All repositories have results", "File paths are correct" });
+        new[] { 
+            "Input validation is explicit",
+            "Errors are handled clearly",
+            "Existing behavior is preserved",
+            "Output is valid JSON",
+            "All repositories have results",
+            "File paths are correct" 
+        });
 
 }

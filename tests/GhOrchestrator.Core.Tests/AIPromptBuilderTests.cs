@@ -29,8 +29,7 @@ public class AIPromptBuilderTests
             new[] { "Use PascalCase for public members." },
             new[] { "Run unit tests: dotnet test." },
             new[] { "No CI changes required." },
-            new[] { "All tests pass", "PR is opened" },
-            new[] { "Output is deterministic." });
+            new[] { "Input validation explicit", "Errors handled clearly" });
 
         var request = new AIPromptRequest(
             task,
@@ -45,11 +44,9 @@ public class AIPromptBuilderTests
         Assert.Contains("org/orchestrator", result);
         Assert.Contains("## Policies", result);
         Assert.Contains("Do not log secrets.", result);
-        Assert.Contains("## Definition of Done", result);
-        Assert.Contains("All tests pass", result);
-        Assert.Contains("PR is opened", result);
         Assert.Contains("## Success Criteria", result);
-        Assert.Contains("Output is deterministic.", result);
+        Assert.Contains("Input validation explicit", result);
+        Assert.Contains("Errors handled clearly", result);
     }
 
     [Fact]
@@ -79,8 +76,7 @@ public class AIPromptBuilderTests
             Array.Empty<string>(),
             Array.Empty<string>(),
             Array.Empty<string>(),
-            new[] { "Escape `characters`." },
-            new[] { "No ## headings." });
+            new[] { "Escape `characters`.", "No ## headings." });
 
         var request = new AIPromptRequest(
             task,
@@ -119,8 +115,7 @@ public class AIPromptBuilderTests
                 Array.Empty<string>(),
                 Array.Empty<string>(),
                 Array.Empty<string>(),
-                new[] { "Tests pass" },
-                new[] { "Output valid" }));
+                new[] { "Output is deterministic" }));
 
         var result = AIPromptBuilder.Build(request);
 
@@ -159,8 +154,7 @@ public class AIPromptBuilderTests
                 Array.Empty<string>(),
                 Array.Empty<string>(),
                 Array.Empty<string>(),
-                new[] { "Tests pass" },
-                new[] { "Output valid" }));
+                new[] { "Output is deterministic" }));
 
         var result = AIPromptBuilder.Build(request);
 

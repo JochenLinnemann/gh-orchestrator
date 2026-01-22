@@ -20,8 +20,7 @@ public class AIWorkerContractsTests
             Array.Empty<string>(),
             Array.Empty<string>(),
             Array.Empty<string>(),
-            new[] { "All tests pass" },
-            new[] { "Output valid" }
+            new[] { "Validation explicit" }
         );
 
         var request = new AIWorkerRequest(
