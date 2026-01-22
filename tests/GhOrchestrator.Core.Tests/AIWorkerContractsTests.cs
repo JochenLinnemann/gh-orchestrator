@@ -15,14 +15,14 @@ public class AIWorkerContractsTests
             AcceptanceCriteria: "Tests pass",
             Constraints: "No new dependencies"
         );
-        var policies = new Dictionary<string, string>
-        {
-            ["security"] = "Follow OWASP guidance",
-        };
-        var constraints = new Dictionary<string, string>
-        {
-            ["timeout"] = "15m",
-        };
+        var policies = new AIPromptPolicies(
+            new[] { "Follow OWASP guidance" },
+            Array.Empty<string>(),
+            Array.Empty<string>(),
+            Array.Empty<string>(),
+            new[] { "All tests pass" },
+            new[] { "Output valid" }
+        );
 
         var request = new AIWorkerRequest(
             Task: task,
@@ -34,7 +34,7 @@ public class AIWorkerContractsTests
         Assert.Equal("org/service-a", request.Repositories[0]);
         Assert.Equal("Tests pass", request.Task.AcceptanceCriteria);
         Assert.Equal("No new dependencies", request.Task.Constraints);
-        Assert.Equal("Follow OWASP guidance", request.Policies["security"]);
+        Assert.Equal("Follow OWASP guidance", request.Policies.Security[0]);
     }
 
     [Fact]

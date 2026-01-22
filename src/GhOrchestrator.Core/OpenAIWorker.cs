@@ -86,7 +86,6 @@ public sealed class OpenAIWorker : IAIWorker
         // Note: Repository context (language, files, structure) is not available in AIWorkerRequest,
         // so this uses simplified versions.
         // TODO: Refactor to pass AIPromptRequest directly to enable richer prompts.
-        var policies = ParsePolicies(request.Policies);
 
         var repositories = request.Repositories
             .Select(repo => new AIPromptRepositoryContext(
@@ -99,20 +98,9 @@ public sealed class OpenAIWorker : IAIWorker
         var promptRequest = new AIPromptRequest(
             request.Task,
             repositories,
-            policies);
+            request.Policies);
 
         return AIPromptBuilder.Build(promptRequest);
-    }
-
-    private static AIPromptPolicies ParsePolicies(IReadOnlyDictionary<string, string> policiesDict)
-    {
-        return new AIPromptPolicies(
-            NormalizeLines(policiesDict.GetValueOrDefault("security")),
-            NormalizeLines(policiesDict.GetValueOrDefault("naming")),
-            NormalizeLines(policiesDict.GetValueOrDefault("testing")),
-            NormalizeLines(policiesDict.GetValueOrDefault("ci_cd")),
-            NormalizeLines(policiesDict.GetValueOrDefault("definition_of_done")),
-            NormalizeLines(policiesDict.GetValueOrDefault("success_criteria")));
     }
 
     private static IReadOnlyList<string> NormalizeLines(string? value)
