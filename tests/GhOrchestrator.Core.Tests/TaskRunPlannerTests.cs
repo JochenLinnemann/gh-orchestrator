@@ -49,14 +49,14 @@ public class TaskRunPlannerTests
     }
 
     [Fact]
-    public void Plan_InvalidTask_ReturnsFailure()
+    public void Plan_NoRepos_ReturnsFailure()
     {
-        var task = ValidTask with { AcceptanceCriteria = null };
+        var task = ValidTask with { Repos = Array.Empty<string>() };
 
         var result = TaskRunPlanner.Plan(task, DateTimeOffset.UtcNow);
 
         Assert.False(result.IsValid);
         Assert.Null(result.Plan);
-        Assert.Contains("Acceptance criteria", result.ErrorMessage);
+        Assert.Contains("Repos", result.ErrorMessage);
     }
 }

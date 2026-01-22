@@ -8,16 +8,13 @@ public static class TaskRunPlanner
 {
     /// <summary>
     /// Build a task run plan with a formatted run ID and execution steps.
+    /// Assumes task has already been validated upstream.
     /// </summary>
     /// <param name="task">Task specification to plan.</param>
     /// <param name="now">Current timestamp (UTC recommended) for run ID formatting.</param>
     /// <returns>Plan result with structured error information.</returns>
     public static TaskRunPlanResult Plan(TaskSpec task, DateTimeOffset now)
     {
-        var validationResult = TaskQualityGate.Validate(task);
-        if (!validationResult.IsValid)
-            return TaskRunPlanResult.Failure(validationResult.ErrorMessage ?? "Task failed validation.");
-
         if (task.Repos.Count == 0)
             return TaskRunPlanResult.Failure("Repos must be present and non-empty");
 
