@@ -26,7 +26,7 @@ public class Orchestrator
     /// <param name="commentText">Raw comment text.</param>
     /// <param name="issueBody">Full issue body.</param>
     /// <param name="triggerUser">GitHub user who posted the comment.</param>
-    /// <returns>Validation result.</returns>
+    /// <returns>Validation result with TaskSpec if valid.</returns>
     public TaskValidationResult ProcessIssueComment(
         int issueNumber,
         string repository,
@@ -62,7 +62,7 @@ public class Orchestrator
 
         var preflightResult = RunPreflight.Validate(taskBuildResult.Task, issueContext);
 
-        return TaskValidationResult.FromPreflight(taskQualityGateResult, preflightResult);
+        return TaskValidationResult.FromPreflight(taskQualityGateResult, preflightResult, taskBuildResult.Task);
     }
 
     /// <summary>
@@ -161,31 +161,20 @@ public class Orchestrator
             issueCommentEvent.IssueNumber,
             runId);
 
-        // 2. Parse task spec from validated issue
-        var issue = await gitHubClient.GetIssue(
-            issueCommentEvent.Repository,
-            issueCommentEvent.IssueNumber,
-            cancellationToken);
-
-        if (issue is null)
+        // 2. Get task spec from validation result
+        var task = validationResult.Task;
+        if (task is null)
         {
             _logger.LogWarning(
-                "Issue not found: repo={Repository}, issue={IssueNumber}, runId={RunId}",
+                "Task spec not available after validation: repo={Repository}, issue={IssueNumber}, runId={RunId}",
                 issueCommentEvent.Repository,
                 issueCommentEvent.IssueNumber,
                 runId);
-            return OrchestratorResult.Failure(runId, "Issue not found");
+            return OrchestratorResult.Failure(runId, "Task spec not available");
         }
 
-        var taskBuildResult = BuildTaskSpec(
-            issueCommentEvent.IssueNumber,
-            issueCommentEvent.Repository,
-            issue.Title,
-            issue.Body ?? string.Empty,
-            issueCommentEvent.CommentBody,
-            issueCommentEvent.CommentAuthor,
-            requireDescription: true);
-        if (taskBuildResult.ErrorMessage is not null || taskBuildResult.Task is null)
+        // Validate description is present for execution (validation allows bare /ai start for testing)
+        if (string.IsNullOrWhiteSpace(task.Description))
         {
             _logger.LogWarning(
                 "Task description missing: repo={Repository}, issue={IssueNumber}, runId={RunId}",
@@ -194,9 +183,8 @@ public class Orchestrator
                 runId);
             return OrchestratorResult.Failure(
                 runId,
-                taskBuildResult.ErrorMessage ?? "Task description missing: provide text after /ai start or set Acceptance Criteria in issue");
+                "Task description missing: provide text after /ai start or set Acceptance Criteria in issue");
         }
-        var task = taskBuildResult.Task;
 
         // 3. Claim the task
         _logger.LogInformation(

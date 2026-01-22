@@ -5,7 +5,8 @@ namespace GhOrchestrator.Core;
 /// </summary>
 public record TaskValidationResult(
     ValidationResult TaskQualityGateResult,
-    PreflightValidationResult? PreflightResult
+    PreflightValidationResult? PreflightResult,
+    TaskSpec? Task = null
 )
 {
     public bool IsValid => TaskQualityGateResult.IsValid && (PreflightResult?.IsValid ?? true);
@@ -18,8 +19,8 @@ public record TaskValidationResult(
             : PreflightResult?.ErrorMessage;
 
     public static TaskValidationResult FromTaskQualityGateFailure(ValidationResult result) =>
-        new(result, null);
+        new(result, null, null);
 
-    public static TaskValidationResult FromPreflight(ValidationResult taskQualityGateResult, PreflightValidationResult preflightResult) =>
-        new(taskQualityGateResult, preflightResult);
+    public static TaskValidationResult FromPreflight(ValidationResult taskQualityGateResult, PreflightValidationResult preflightResult, TaskSpec? task = null) =>
+        new(taskQualityGateResult, preflightResult, task);
 }
