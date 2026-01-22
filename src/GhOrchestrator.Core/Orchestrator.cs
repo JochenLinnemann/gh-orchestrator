@@ -41,24 +41,26 @@ public class Orchestrator
             return TaskValidationResult.FromTaskQualityGateFailure(
                 ValidationResult.Failure("Comment does not contain /ai start command"));
 
-        // Parse /ai start command description (may be null for bare /ai start)
-        var description = CommandParser.ParseAiStartCommand(commentText) ?? string.Empty;
-
-        // Parse metadata from issue body
-        var repos = CommandParser.ParseRepositories(issueBody);
-        var acceptanceCriteria = CommandParser.ParseAcceptanceCriteria(issueBody);
-        var constraints = CommandParser.ParseConstraints(issueBody);
-
-        // Create task specification with fallback to acceptance criteria for description
-        var finalDescription = !string.IsNullOrWhiteSpace(description) ? description : (acceptanceCriteria ?? string.Empty);
-        var task = new TaskSpec(issueNumber, repository, issueTitle, finalDescription, repos, triggerUser, acceptanceCriteria, constraints);
+        var taskBuildResult = BuildTaskSpec(
+            issueNumber,
+            repository,
+            issueTitle,
+            issueBody,
+            commentText,
+            triggerUser,
+            requireDescription: false);
+        if (taskBuildResult.ErrorMessage is not null || taskBuildResult.Task is null)
+        {
+            return TaskValidationResult.FromTaskQualityGateFailure(
+                ValidationResult.Failure(taskBuildResult.ErrorMessage ?? "Task description missing"));
+        }
 
         // Validate task
-        var taskQualityGateResult = TaskQualityGate.Validate(task);
+        var taskQualityGateResult = TaskQualityGate.Validate(taskBuildResult.Task);
         if (!taskQualityGateResult.IsValid)
             return TaskValidationResult.FromTaskQualityGateFailure(taskQualityGateResult);
 
-        var preflightResult = RunPreflight.Validate(task, issueContext);
+        var preflightResult = RunPreflight.Validate(taskBuildResult.Task, issueContext);
 
         return TaskValidationResult.FromPreflight(taskQualityGateResult, preflightResult);
     }
@@ -175,35 +177,26 @@ public class Orchestrator
             return OrchestratorResult.Failure(runId, "Issue not found");
         }
 
-        var commandDescription = CommandParser.ParseAiStartCommand(issueCommentEvent.CommentBody);
-        var acceptanceCriteria = CommandParser.ParseAcceptanceCriteria(issue.Body ?? string.Empty);
-        
-        // Use command description if provided, otherwise use acceptance criteria
-        var description = !string.IsNullOrWhiteSpace(commandDescription) 
-            ? commandDescription 
-            : acceptanceCriteria;
-
-        if (string.IsNullOrWhiteSpace(description))
+        var taskBuildResult = BuildTaskSpec(
+            issueCommentEvent.IssueNumber,
+            issueCommentEvent.Repository,
+            issue.Title,
+            issue.Body ?? string.Empty,
+            issueCommentEvent.CommentBody,
+            issueCommentEvent.CommentAuthor,
+            requireDescription: true);
+        if (taskBuildResult.ErrorMessage is not null || taskBuildResult.Task is null)
         {
             _logger.LogWarning(
                 "Task description missing: repo={Repository}, issue={IssueNumber}, runId={RunId}",
                 issueCommentEvent.Repository,
                 issueCommentEvent.IssueNumber,
                 runId);
-            return OrchestratorResult.Failure(runId, "Task description missing: provide text after /ai start or set Acceptance Criteria in issue");
+            return OrchestratorResult.Failure(
+                runId,
+                taskBuildResult.ErrorMessage ?? "Task description missing: provide text after /ai start or set Acceptance Criteria in issue");
         }
-
-        var repos = CommandParser.ParseRepositories(issue.Body ?? string.Empty);
-        var constraints = CommandParser.ParseConstraints(issue.Body ?? string.Empty);
-        var task = new TaskSpec(
-            issueCommentEvent.IssueNumber,
-            issueCommentEvent.Repository,
-            issue.Title,
-            description,
-            repos,
-            issueCommentEvent.CommentAuthor,
-            acceptanceCriteria,
-            constraints);
+        var task = taskBuildResult.Task;
 
         // 3. Claim the task
         _logger.LogInformation(
@@ -321,6 +314,51 @@ public class Orchestrator
             executionResult.Results.Count);
 
         return OrchestratorResult.Success(runId, executionResult);
+    }
+
+    private static TaskSpecBuildResult BuildTaskSpec(
+        int issueNumber,
+        string repository,
+        string issueTitle,
+        string issueBody,
+        string commentText,
+        string? triggerUser,
+        bool requireDescription)
+    {
+        var commandDescription = CommandParser.ParseAiStartCommand(commentText);
+        var acceptanceCriteria = CommandParser.ParseAcceptanceCriteria(issueBody);
+        var constraints = CommandParser.ParseConstraints(issueBody);
+        var repos = CommandParser.ParseRepositories(issueBody);
+
+        var description = !string.IsNullOrWhiteSpace(commandDescription)
+            ? commandDescription
+            : acceptanceCriteria;
+
+        if (requireDescription && string.IsNullOrWhiteSpace(description))
+        {
+            return TaskSpecBuildResult.Failure(
+                "Task description missing: provide text after /ai start or set Acceptance Criteria in issue");
+        }
+
+        var finalDescription = description ?? string.Empty;
+        var task = new TaskSpec(
+            issueNumber,
+            repository,
+            issueTitle,
+            finalDescription,
+            repos,
+            triggerUser,
+            acceptanceCriteria,
+            constraints);
+
+        return TaskSpecBuildResult.Success(task);
+    }
+
+    private sealed record TaskSpecBuildResult(TaskSpec? Task, string? ErrorMessage)
+    {
+        public static TaskSpecBuildResult Success(TaskSpec task) => new(task, null);
+
+        public static TaskSpecBuildResult Failure(string errorMessage) => new(null, errorMessage);
     }
 
     private sealed class NullOrchestratorLogger : IOrchestratorLogger
