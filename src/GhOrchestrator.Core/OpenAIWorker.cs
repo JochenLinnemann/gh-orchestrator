@@ -43,7 +43,7 @@ public sealed class OpenAIWorker : IAIWorker
                     messages,
                     new ChatCompletionOptions(),
                     timeoutCts.Token);
-                var responseText = completion.Content.FirstOrDefault()?.Text ?? string.Empty;
+                var responseText = completion.Value.Content.FirstOrDefault()?.Text ?? string.Empty;
                 return OpenAIWorkerResponseParser.Parse(responseText, request.Repositories);
             }
             catch (Exception ex) when (IsRetryable(ex) && attempt < _configuration.MaxRetries)
