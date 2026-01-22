@@ -27,8 +27,7 @@ public class AIWorkerContractsTests
         var request = new AIWorkerRequest(
             Task: task,
             Repositories: new[] { "org/service-a" },
-            Policies: policies,
-            ExecutionConstraints: constraints
+            Policies: policies
         );
 
         Assert.Same(task, request.Task);
@@ -36,7 +35,6 @@ public class AIWorkerContractsTests
         Assert.Equal("Tests pass", request.Task.AcceptanceCriteria);
         Assert.Equal("No new dependencies", request.Task.Constraints);
         Assert.Equal("Follow OWASP guidance", request.Policies["security"]);
-        Assert.Equal("15m", request.ExecutionConstraints["timeout"]);
     }
 
     [Fact]

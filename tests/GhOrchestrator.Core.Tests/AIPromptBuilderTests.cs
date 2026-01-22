@@ -29,13 +29,13 @@ public class AIPromptBuilderTests
             new[] { "Use PascalCase for public members." },
             new[] { "Run unit tests: dotnet test." },
             new[] { "No CI changes required." },
-            new[] { "All tests pass", "PR is opened" });
+            new[] { "All tests pass", "PR is opened" },
+            new[] { "Output is deterministic." });
 
         var request = new AIPromptRequest(
             task,
             repositories,
-            policies,
-            new[] { "Output is deterministic." });
+            policies);
 
         var result = AIPromptBuilder.Build(request);
 
@@ -79,13 +79,13 @@ public class AIPromptBuilderTests
             Array.Empty<string>(),
             Array.Empty<string>(),
             Array.Empty<string>(),
-            new[] { "Escape `characters`." });
+            new[] { "Escape `characters`." },
+            new[] { "No ## headings." });
 
         var request = new AIPromptRequest(
             task,
             repositories,
-            policies,
-            new[] { "No ## headings." });
+            policies);
 
         var result = AIPromptBuilder.Build(request);
 
@@ -119,8 +119,8 @@ public class AIPromptBuilderTests
                 Array.Empty<string>(),
                 Array.Empty<string>(),
                 Array.Empty<string>(),
-                new[] { "Tests pass" }),
-            Array.Empty<string>());
+                new[] { "Tests pass" },
+                new[] { "Output valid" }));
 
         var result = AIPromptBuilder.Build(request);
 
@@ -159,8 +159,8 @@ public class AIPromptBuilderTests
                 Array.Empty<string>(),
                 Array.Empty<string>(),
                 Array.Empty<string>(),
-                new[] { "Tests pass" }),
-            Array.Empty<string>());
+                new[] { "Tests pass" },
+                new[] { "Output valid" }));
 
         var result = AIPromptBuilder.Build(request);
 
