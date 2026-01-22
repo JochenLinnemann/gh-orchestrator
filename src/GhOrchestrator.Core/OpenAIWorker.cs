@@ -14,7 +14,7 @@ public sealed class OpenAIWorker : IAIWorker
     public OpenAIWorker(OpenAIWorkerConfiguration configuration, IOrchestratorLogger? logger = null)
     {
         _configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
-        _logger = logger ?? new NullOrchestratorLogger();
+        _logger = logger ?? NullOrchestratorLogger.Instance;
         _chatClient = new ChatClient(configuration.Model, configuration.ApiKey);
     }
 
@@ -113,20 +113,5 @@ public sealed class OpenAIWorker : IAIWorker
             .Select(line => line.Trim())
             .Where(line => !string.IsNullOrWhiteSpace(line))
             .ToArray();
-    }
-
-    private sealed class NullOrchestratorLogger : IOrchestratorLogger
-    {
-        public void LogInformation(string message, params object?[] args)
-        {
-        }
-
-        public void LogWarning(string message, params object?[] args)
-        {
-        }
-
-        public void LogError(Exception exception, string message, params object?[] args)
-        {
-        }
     }
 }

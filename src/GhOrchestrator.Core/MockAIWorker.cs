@@ -9,7 +9,7 @@ public sealed class MockAIWorker : IAIWorker
 
     public MockAIWorker(IOrchestratorLogger? logger = null)
     {
-        _logger = logger ?? new NullOrchestratorLogger();
+        _logger = logger ?? NullOrchestratorLogger.Instance;
     }
 
     public Task<AIWorkerResult> ExecuteAsync(AIWorkerRequest request, CancellationToken cancellationToken = default)
@@ -23,20 +23,5 @@ public sealed class MockAIWorker : IAIWorker
             request.Task.IssueNumber);
 
         return Task.FromResult(new AIWorkerResult(Array.Empty<AIWorkerRepoResult>()));
-    }
-
-    private sealed class NullOrchestratorLogger : IOrchestratorLogger
-    {
-        public void LogInformation(string message, params object?[] args)
-        {
-        }
-
-        public void LogWarning(string message, params object?[] args)
-        {
-        }
-
-        public void LogError(Exception exception, string message, params object?[] args)
-        {
-        }
     }
 }

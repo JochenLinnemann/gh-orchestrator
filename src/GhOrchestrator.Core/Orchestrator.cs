@@ -12,7 +12,7 @@ public class Orchestrator
 
     public Orchestrator(IOrchestratorLogger? logger = null, IAIWorker? aiWorker = null)
     {
-        _logger = logger ?? new NullOrchestratorLogger();
+        _logger = logger ?? NullOrchestratorLogger.Instance;
         _aiWorker = aiWorker ?? new MockAIWorker(_logger);
     }
 
@@ -347,20 +347,5 @@ public class Orchestrator
         public static TaskSpecBuildResult Success(TaskSpec task) => new(task, null);
 
         public static TaskSpecBuildResult Failure(string errorMessage) => new(null, errorMessage);
-    }
-
-    private sealed class NullOrchestratorLogger : IOrchestratorLogger
-    {
-        public void LogInformation(string message, params object?[] args)
-        {
-        }
-
-        public void LogWarning(string message, params object?[] args)
-        {
-        }
-
-        public void LogError(Exception exception, string message, params object?[] args)
-        {
-        }
     }
 }
