@@ -6,7 +6,8 @@ public static class AIPromptPolicyProvider
         Array.Empty<string>(),
         Array.Empty<string>(),
         Array.Empty<string>(),
-        Array.Empty<string>());
+        Array.Empty<string>(),
+        new[] { "All tests pass", "Code is committed to branch", "PR is opened" });
 
     public static IReadOnlyDictionary<string, string> ToDictionary(AIPromptPolicies policies)
     {
@@ -18,7 +19,8 @@ public static class AIPromptPolicyProvider
             ["security"] = string.Join('\n', policies.Security),
             ["naming"] = string.Join('\n', policies.Naming),
             ["testing"] = string.Join('\n', policies.Testing),
-            ["ci_cd"] = string.Join('\n', policies.CiCd)
+            ["ci_cd"] = string.Join('\n', policies.CiCd),
+            ["definition_of_done"] = string.Join('\n', policies.DefinitionOfDone)
         };
     }
 }

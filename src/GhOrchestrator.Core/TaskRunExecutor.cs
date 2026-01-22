@@ -62,7 +62,6 @@ public static class TaskRunExecutor
         var workerRequest = new AIWorkerRequest(
             task,
             plan.Repos,
-            DefinitionOfDone: null,
             AIPromptPolicyProvider.ToDictionary(policies),
             new Dictionary<string, string>());
         var workerResult = await aiWorker.ExecuteAsync(workerRequest, cancellationToken);

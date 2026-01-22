@@ -86,15 +86,12 @@ public sealed class OpenAIWorker : IAIWorker
         // Note: Repository context (language, files, structure) and execution constraints are not
         // available in AIWorkerRequest, so this uses simplified versions.
         // TODO: Refactor to pass AIPromptRequest directly to enable richer prompts.
-        var definitionOfDone = request.DefinitionOfDone is not null
-            ? NormalizeLines(request.DefinitionOfDone)
-            : Array.Empty<string>();
-
         var policies = new AIPromptPolicies(
             Array.Empty<string>(),
             Array.Empty<string>(),
             Array.Empty<string>(),
-            Array.Empty<string>());
+            Array.Empty<string>(),
+            new[] { "All tests pass", "Code is committed to branch", "PR is opened" });
 
         var repositories = request.Repositories
             .Select(repo => new AIPromptRepositoryContext(
@@ -108,7 +105,6 @@ public sealed class OpenAIWorker : IAIWorker
             request.Task,
             repositories,
             policies,
-            definitionOfDone,
             Array.Empty<string>());
 
         return AIPromptBuilder.Build(promptRequest);

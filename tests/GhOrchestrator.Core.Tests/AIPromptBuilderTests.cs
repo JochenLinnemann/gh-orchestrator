@@ -28,13 +28,13 @@ public class AIPromptBuilderTests
             new[] { "Do not log secrets." },
             new[] { "Use PascalCase for public members." },
             new[] { "Run unit tests: dotnet test." },
-            new[] { "No CI changes required." });
+            new[] { "No CI changes required." },
+            new[] { "All tests pass", "PR is opened" });
 
         var request = new AIPromptRequest(
             task,
             repositories,
             policies,
-            new[] { "Prompt is structured and safe." },
             new[] { "Output is deterministic." });
 
         var result = AIPromptBuilder.Build(request);
@@ -46,7 +46,8 @@ public class AIPromptBuilderTests
         Assert.Contains("## Policies", result);
         Assert.Contains("Do not log secrets.", result);
         Assert.Contains("## Definition of Done", result);
-        Assert.Contains("Prompt is structured and safe.", result);
+        Assert.Contains("All tests pass", result);
+        Assert.Contains("PR is opened", result);
         Assert.Contains("## Success Criteria", result);
         Assert.Contains("Output is deterministic.", result);
     }
@@ -77,13 +78,13 @@ public class AIPromptBuilderTests
             new[] { "No *markdown* injection." },
             Array.Empty<string>(),
             Array.Empty<string>(),
-            Array.Empty<string>());
+            Array.Empty<string>(),
+            new[] { "Escape `characters`." });
 
         var request = new AIPromptRequest(
             task,
             repositories,
             policies,
-            new[] { "Escape `characters`." },
             new[] { "No ## headings." });
 
         var result = AIPromptBuilder.Build(request);
@@ -117,8 +118,8 @@ public class AIPromptBuilderTests
                 Array.Empty<string>(),
                 Array.Empty<string>(),
                 Array.Empty<string>(),
-                Array.Empty<string>()),
-            Array.Empty<string>(),
+                Array.Empty<string>(),
+                new[] { "Tests pass" }),
             Array.Empty<string>());
 
         var result = AIPromptBuilder.Build(request);
@@ -157,8 +158,8 @@ public class AIPromptBuilderTests
                 Array.Empty<string>(),
                 Array.Empty<string>(),
                 Array.Empty<string>(),
-                Array.Empty<string>()),
-            Array.Empty<string>(),
+                Array.Empty<string>(),
+                new[] { "Tests pass" }),
             Array.Empty<string>());
 
         var result = AIPromptBuilder.Build(request);
