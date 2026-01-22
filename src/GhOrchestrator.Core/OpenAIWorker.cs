@@ -82,62 +82,54 @@ public sealed class OpenAIWorker : IAIWorker
 
     private static string BuildPrompt(AIWorkerRequest request)
     {
-        var acceptanceCriteria = string.IsNullOrWhiteSpace(request.AcceptanceCriteria)
-            ? "(none provided)"
-            : request.AcceptanceCriteria.Trim();
-        var constraints = string.IsNullOrWhiteSpace(request.Constraints)
-            ? "(none provided)"
-            : request.Constraints.Trim();
-        var definitionOfDone = string.IsNullOrWhiteSpace(request.DefinitionOfDone)
-            ? "(none provided)"
-            : request.DefinitionOfDone.Trim();
-        var policyLines = request.Policies.Count == 0
-            ? "(none provided)"
-            : string.Join("\n", request.Policies.Select(policy => $"- {policy.Key}: {policy.Value}"));
-        var executionConstraints = request.ExecutionConstraints.Count == 0
-            ? "(none provided)"
-            : string.Join("\n", request.ExecutionConstraints.Select(constraint => $"- {constraint.Key}: {constraint.Value}"));
+        // Convert flat AIWorkerRequest to structured AIPromptRequest for canonical prompt building.
+        // Note: Repository context (language, files, structure) and execution constraints are not
+        // available in AIWorkerRequest, so this uses simplified versions.
+        // TODO: Refactor to pass AIPromptRequest directly to enable richer prompts.
+        var acceptanceCriteria = request.AcceptanceCriteria is not null
+            ? NormalizeLines(request.AcceptanceCriteria)
+            : Array.Empty<string>();
+        var constraints = request.Constraints is not null
+            ? NormalizeLines(request.Constraints)
+            : Array.Empty<string>();
+        var definitionOfDone = request.DefinitionOfDone is not null
+            ? NormalizeLines(request.DefinitionOfDone)
+            : Array.Empty<string>();
 
-        return $$$"""
-            ## Task
-            Title: {request.Task.Title}
-            Description: {request.Task.Description}
-            Acceptance Criteria: {acceptanceCriteria}
-            Constraints: {constraints}
-            Definition of Done: {definitionOfDone}
+        var policies = new AIPromptPolicies(
+            Array.Empty<string>(),
+            Array.Empty<string>(),
+            Array.Empty<string>(),
+            Array.Empty<string>());
 
-            ## Repositories
-            {string.Join("\n", request.Repositories.Select(repo => $"- {repo}"))}
+        var repositories = request.Repositories
+            .Select(repo => new AIPromptRepositoryContext(
+                repo,
+                null,
+                Array.Empty<string>(),
+                Array.Empty<string>()))
+            .ToList();
 
-            ## Policies
-            {policyLines}
+        var promptRequest = new AIPromptRequest(
+            request.Task,
+            repositories,
+            policies,
+            definitionOfDone,
+            Array.Empty<string>());
 
-            ## Execution Constraints
-            {executionConstraints}
+        return AIPromptBuilder.Build(promptRequest);
+    }
 
-            ## Output Schema
-            Respond with JSON only, matching this schema:
-            {{
-              "repoResults": [
-                {{
-                  "repository": "org/repo",
-                  "summary": "short summary of changes",
-                  "changes": [
-                    {{
-                      "path": "path/to/file.cs",
-                      "changeType": "create|modify|delete",
-                      "content": "full file content after change"
-                    }}
-                  ]
-                }}
-              ]
-            }}
+    private static IReadOnlyList<string> NormalizeLines(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            return Array.Empty<string>();
 
-            Requirements:
-            - Include one repoResults entry for each repository listed.
-            - Use empty changes array when no updates are needed.
-            - Do not include any text outside the JSON.
-            """;
+        return value
+            .Split('\n')
+            .Select(line => line.Trim())
+            .Where(line => !string.IsNullOrWhiteSpace(line))
+            .ToArray();
     }
 
     private sealed class NullOrchestratorLogger : IOrchestratorLogger

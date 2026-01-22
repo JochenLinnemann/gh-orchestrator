@@ -60,6 +60,33 @@ public static class AIPromptBuilder
         AppendListSection(builder, "Definition of Done", request.DefinitionOfDone);
         AppendListSection(builder, "Success Criteria", request.SuccessCriteria);
 
+        builder.AppendLine();
+        builder.AppendLine("## Output Schema");
+        builder.AppendLine("Respond with JSON only, matching this schema:");
+        builder.AppendLine("""
+            {
+              "repoResults": [
+                {
+                  "repository": "org/repo",
+                  "summary": "short summary of changes",
+                  "changes": [
+                    {
+                      "path": "path/to/file.cs",
+                      "changeType": "create|modify|delete",
+                      "content": "full file content after change"
+                    }
+                  ]
+                }
+              ]
+            }
+            """);
+
+        builder.AppendLine();
+        builder.AppendLine("## Requirements");
+        builder.AppendLine("- Include one repoResults entry for each repository listed.");
+        builder.AppendLine("- Use empty changes array when no updates are needed.");
+        builder.AppendLine("- Do not include any text outside the JSON.");
+
         return builder.ToString().TrimEnd();
     }
 

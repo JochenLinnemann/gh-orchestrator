@@ -98,6 +98,46 @@ public class AIPromptBuilderTests
     }
 
     [Fact]
+    public void Build_IncludesOutputSchemaAndRequirements()
+    {
+        var task = new TaskSpec(
+            99,
+            "org/test",
+            "Schema validation",
+            "Ensure output schema and requirements are present.",
+            new[] { "org/test" },
+            null,
+            null,
+            null);
+
+        var request = new AIPromptRequest(
+            task,
+            Array.Empty<AIPromptRepositoryContext>(),
+            new AIPromptPolicies(
+                Array.Empty<string>(),
+                Array.Empty<string>(),
+                Array.Empty<string>(),
+                Array.Empty<string>()),
+            Array.Empty<string>(),
+            Array.Empty<string>());
+
+        var result = AIPromptBuilder.Build(request);
+
+        // Verify JSON schema section
+        Assert.Contains("## Output Schema", result);
+        Assert.Contains("\"repoResults\"", result);
+        Assert.Contains("\"repository\"", result);
+        Assert.Contains("\"changeType\": \"create|modify|delete\"", result);
+        Assert.Contains("\"content\"", result);
+
+        // Verify requirements section
+        Assert.Contains("## Requirements", result);
+        Assert.Contains("Include one repoResults entry for each repository listed.", result);
+        Assert.Contains("Use empty changes array when no updates are needed.", result);
+        Assert.Contains("Do not include any text outside the JSON.", result);
+    }
+
+    [Fact]
     public void Build_UsesPlaceholdersForMissingLists()
     {
         var task = new TaskSpec(
