@@ -70,11 +70,30 @@ public static class TaskRunExecutor
             plan.Repos,
             policies);
         var workerResult = await aiWorker.ExecuteAsync(workerRequest, cancellationToken);
+        var validationSettings = WorkerResultValidationSettings.Default(CommitAuthorName, CommitAuthorEmail);
+        var validationResult = WorkerResultValidator.Validate(plan, workerResult, validationSettings);
 
         // Fetch base branches and build PR plans
+        var executionResults = new List<RepoExecutionResult>(plan.Repos.Count);
+        var invalidRepos = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var planRepos = new HashSet<string>(plan.Repos, StringComparer.OrdinalIgnoreCase);
+        var shortSlug = TaskSlugFormatter.Format(task.Title, task.Description);
+        var branchName = BranchNameFormatter.Format(plan.RunId, shortSlug);
+
+        foreach (var repoValidation in validationResult.RepoResults.Where(result => !result.IsValid))
+        {
+            invalidRepos.Add(repoValidation.Repository);
+            var failureBranch = planRepos.Contains(repoValidation.Repository) ? branchName : string.Empty;
+            executionResults.Add(RepoExecutionResult.Failure(
+                repoValidation.Repository,
+                failureBranch,
+                string.Empty,
+                string.Join("; ", repoValidation.Errors)));
+        }
+
         var baseBranches = new Dictionary<string, string>(plan.Repos.Count);
         var unavailableRepos = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        foreach (var repo in plan.Repos)
+        foreach (var repo in plan.Repos.Where(repo => !invalidRepos.Contains(repo)))
         {
             try
             {
@@ -86,13 +105,13 @@ public static class TaskRunExecutor
             }
         }
 
-        var availableRepos = plan.Repos.Where(repo => !unavailableRepos.Contains(repo)).ToArray();
+        var availableRepos = plan.Repos.Where(repo =>
+            !invalidRepos.Contains(repo) && !unavailableRepos.Contains(repo)).ToArray();
         var prPlans = availableRepos.Length > 0
             ? BuildPullRequestPlans(task, plan with { Repos = availableRepos }, baseBranches)
             : Array.Empty<RepoPullRequestPlan>();
 
         // Execute branch and PR creation for each plan
-        var executionResults = new List<RepoExecutionResult>(plan.Repos.Count);
         foreach (var repo in unavailableRepos)
         {
             executionResults.Add(RepoExecutionResult.Failure(

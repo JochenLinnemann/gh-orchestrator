@@ -293,7 +293,7 @@ Tasks (in order)
 
 ---
 
-## 🟧 Plan 24: Worker result validation and quality gates
+## ✅ Plan 24: Worker result validation and quality gates
 
 Goal: Validate AI output before opening PRs; catch obvious issues early.
 
