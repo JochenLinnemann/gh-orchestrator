@@ -276,7 +276,7 @@ Tasks (in order)
 
 ---
 
-## 🟧 Plan 23: Git operations for AI-generated changes
+## ✅ Plan 23: Git operations for AI-generated changes
 
 Goal: Apply AI worker output (code changes) to branches before PR creation.
 
