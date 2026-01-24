@@ -1,5 +1,9 @@
 namespace GhOrchestrator.Core.Tests;
 
+/// <summary>
+/// Critical Path: Tests for preflight validation (Plan 17, v0 release criteria).
+/// Validates that tasks meet safety and accessibility requirements before execution.
+/// </summary>
 public class RunPreflightTests
 {
     private static TaskSpec ValidTask => new(

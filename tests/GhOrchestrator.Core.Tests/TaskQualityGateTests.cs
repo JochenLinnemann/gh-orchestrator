@@ -1,5 +1,9 @@
 namespace GhOrchestrator.Core.Tests;
 
+/// <summary>
+/// Critical Path: Tests for task quality gate validation (Plan 17, v0 release criteria).
+/// Ensures task specifications are complete and meet minimum requirements for execution.
+/// </summary>
 public class TaskQualityGateTests
 {
     [Fact]

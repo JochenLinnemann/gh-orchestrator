@@ -1,5 +1,9 @@
 namespace GhOrchestrator.Core.Tests;
 
+/// <summary>
+/// Critical Path: Tests for task claim operation (Plan 17, v0 release criteria).
+/// Validates that tasks are properly claimed on the project board with AI status and run ID.
+/// </summary>
 public class TaskClaimServiceTests
 {
     [Fact]

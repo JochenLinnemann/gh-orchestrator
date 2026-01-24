@@ -2,6 +2,10 @@ using System.Text;
 
 namespace GhOrchestrator.Core.Tests;
 
+/// <summary>
+/// Critical Path: Tests for git operations (Plan 17, v0 release criteria).
+/// Validates that repositories are cloned, branches are created, file changes are applied, commits are made, and branches are pushed.
+/// </summary>
 public class GitOperationsTests
 {
     [Fact]

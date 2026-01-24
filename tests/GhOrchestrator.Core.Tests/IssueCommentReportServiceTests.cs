@@ -1,5 +1,9 @@
 namespace GhOrchestrator.Core.Tests;
 
+/// <summary>
+/// Critical Path: Tests for execution reporting (Plan 17, v0 release criteria).
+/// Validates that execution results are formatted and posted back to the GitHub issue with attribution.
+/// </summary>
 public class IssueCommentReportServiceTests
 {
     [Fact]

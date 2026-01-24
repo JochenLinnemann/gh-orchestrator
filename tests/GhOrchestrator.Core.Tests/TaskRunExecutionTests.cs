@@ -1,5 +1,9 @@
 namespace GhOrchestrator.Core.Tests;
 
+/// <summary>
+/// Critical Path: Tests for task execution (Plan 17, v0 release criteria).
+/// Validates that AI worker is invoked, file changes are applied, branches are created, and PRs are opened.
+/// </summary>
 public class TaskRunExecutionTests
 {
     private static TaskSpec ValidTask => new(

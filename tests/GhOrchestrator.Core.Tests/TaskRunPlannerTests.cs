@@ -1,5 +1,9 @@
 namespace GhOrchestrator.Core.Tests;
 
+/// <summary>
+/// Critical Path: Tests for task run planning (Plan 17, v0 release criteria).
+/// Validates that execution plans are correctly generated with proper repository and branch mapping.
+/// </summary>
 public class TaskRunPlannerTests
 {
     private static TaskSpec ValidTask => new(
