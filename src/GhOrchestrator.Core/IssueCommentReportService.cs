@@ -7,7 +7,7 @@ public sealed class IssueCommentReportService
         TaskSpec task,
         string summary,
         string testInstructions,
-        IReadOnlyList<RepoExecutionResult> executionResults,
+        TaskRunExecutionResult executionResult,
         IReadOnlyList<string> riskNotes,
         CancellationToken cancellationToken = default)
     {
@@ -15,15 +15,16 @@ public sealed class IssueCommentReportService
             throw new ArgumentNullException(nameof(gitHubClient));
         if (task is null)
             throw new ArgumentNullException(nameof(task));
-        if (executionResults is null)
-            throw new ArgumentNullException(nameof(executionResults));
+        if (executionResult is null)
+            throw new ArgumentNullException(nameof(executionResult));
         if (riskNotes is null)
             throw new ArgumentNullException(nameof(riskNotes));
 
         var body = IssueCommentReportFormatter.Format(
             summary,
             testInstructions,
-            executionResults,
+            executionResult.Results,
+            executionResult,
             riskNotes);
 
         await gitHubClient.AddIssueComment(task.Repository, task.IssueNumber, body, cancellationToken);
