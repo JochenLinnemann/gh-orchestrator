@@ -91,6 +91,12 @@ public class GitOperations : IGitOperations
             if (!IsWithinRepository(repositoryRoot, targetPath))
                 throw new InvalidOperationException("File change path escapes the repository root.");
 
+            // Block symlink escapes: if parent directories or the file itself are symlinks,
+            // verify the resolved path is still within the repository boundary
+            var resolvedPath = ResolvePath(targetPath);
+            if (!IsWithinRepository(repositoryRoot, resolvedPath))
+                throw new InvalidOperationException("File change path follows symlink that escapes the repository root.");
+
             switch (change.ChangeType)
             {
                 case AIWorkerChangeType.Create:
@@ -190,6 +196,35 @@ public class GitOperations : IGitOperations
     {
         var normalizedRoot = repositoryRoot.TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar;
         return targetPath.StartsWith(normalizedRoot, StringComparison.Ordinal);
+    }
+
+    private static string ResolvePath(string path)
+    {
+        // Resolve symlinks by getting the target if the file/directory exists and is a link
+        // If the path doesn't exist yet (create operation), resolve parent directories only
+        if (File.Exists(path) || Directory.Exists(path))
+        {
+            var fileInfo = new FileInfo(path);
+            return fileInfo.LinkTarget is not null 
+                ? Path.GetFullPath(fileInfo.LinkTarget) 
+                : Path.GetFullPath(path);
+        }
+
+        // For non-existent paths, check if any parent directory is a symlink
+        var directory = Path.GetDirectoryName(path);
+        if (!string.IsNullOrEmpty(directory) && Directory.Exists(directory))
+        {
+            var dirInfo = new DirectoryInfo(directory);
+            if (dirInfo.LinkTarget is not null)
+            {
+                // Parent is a symlink; resolve it and reconstruct the full path
+                var resolvedParent = Path.GetFullPath(dirInfo.LinkTarget);
+                var fileName = Path.GetFileName(path);
+                return Path.GetFullPath(Path.Combine(resolvedParent, fileName));
+            }
+        }
+
+        return Path.GetFullPath(path);
     }
 
     private static async Task RunGitAsync(
