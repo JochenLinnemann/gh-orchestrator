@@ -29,7 +29,8 @@ public static class OpenAIWorkerResponseParser
             byRepository[repoPayload.Repository] = repoPayload;
         }
 
-        var repoResults = new List<AIWorkerRepoResult>(expectedRepositories.Count);
+        var expectedRepoSet = new HashSet<string>(expectedRepositories, StringComparer.OrdinalIgnoreCase);
+        var repoResults = new List<AIWorkerRepoResult>(expectedRepositories.Count + byRepository.Count);
         foreach (var repository in expectedRepositories)
         {
             if (!byRepository.TryGetValue(repository, out var repoPayload))
@@ -43,30 +44,43 @@ public static class OpenAIWorkerResponseParser
                 continue;
             }
 
-            var changes = new List<AIWorkerFileChange>();
-            if (repoPayload.Changes is not null)
-            {
-                foreach (var change in repoPayload.Changes)
-                {
-                    if (string.IsNullOrWhiteSpace(change.Path))
-                        continue;
+            repoResults.Add(BuildRepoResult(repository, repoPayload));
+        }
 
-                    changes.Add(new AIWorkerFileChange(
-                        change.Path,
-                        ParseChangeType(change.ChangeType),
-                        change.Content ?? string.Empty));
-                }
-            }
+        foreach (var repoPayload in byRepository)
+        {
+            if (expectedRepoSet.Contains(repoPayload.Key))
+                continue;
 
-            repoResults.Add(new AIWorkerRepoResult(
-                repository,
-                true,
-                changes,
-                repoPayload.Summary ?? string.Empty,
-                null));
+            repoResults.Add(BuildRepoResult(repoPayload.Key, repoPayload.Value));
         }
 
         return new AIWorkerResult(repoResults);
+    }
+
+    private static AIWorkerRepoResult BuildRepoResult(string repository, RepoPayload repoPayload)
+    {
+        var changes = new List<AIWorkerFileChange>();
+        if (repoPayload.Changes is not null)
+        {
+            foreach (var change in repoPayload.Changes)
+            {
+                if (string.IsNullOrWhiteSpace(change.Path))
+                    continue;
+
+                changes.Add(new AIWorkerFileChange(
+                    change.Path,
+                    ParseChangeType(change.ChangeType),
+                    change.Content ?? string.Empty));
+            }
+        }
+
+        return new AIWorkerRepoResult(
+            repository,
+            true,
+            changes,
+            repoPayload.Summary ?? string.Empty,
+            null);
     }
 
     private static AIWorkerChangeType ParseChangeType(string? changeType)
