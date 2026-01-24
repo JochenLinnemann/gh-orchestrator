@@ -57,7 +57,7 @@ The codebase partially meets Plan 17 acceptance criteria. The core flow is imple
 **Status:** NOT COMPLETE
 
 **Evidence:**
-- Plan 9 is defined in [TODO.md](../TODO.md#L367-L380)
+- Plan 9 is defined in [TODO.md](../docs/iterations/v0/TODO.md#L367-L380)
 - No execution results found
 - No outcomes recorded
 

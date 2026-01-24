@@ -26,7 +26,7 @@ GH Orchestrator is not an agent framework. It is an execution layer with guardra
 - ✅ Fallback to mock worker when not configured
 - ✅ AI attribution in commit messages
 
-**Ready for manual testing:** See [Manual Testing Guide](#manual-testing-for-v0-cutover) below.
+**Ready for manual testing:** See [Manual Testing Guide](#manual-testing-for-v0-cutover) below and [docs/iterations/v0/MANUAL_TESTING_README.md](docs/iterations/v0/MANUAL_TESTING_README.md) for detailed guide.
 
 ## Project Overview
 
@@ -134,6 +134,8 @@ See:
    - Update `ROADMAP.md` with outcomes
    - Record any gaps in `RETRO.md`
    - If gaps discovered, create ADR in `DECISIONS.md`
+
+**For comprehensive testing guide:** See [docs/iterations/v0/MANUAL_TESTING_README.md](docs/iterations/v0/MANUAL_TESTING_README.md)
 
 ---
 

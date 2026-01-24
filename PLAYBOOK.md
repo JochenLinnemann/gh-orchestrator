@@ -4,7 +4,7 @@
 
 AI guidance here must not conflict with ARCHITECTURE.md, DECISIONS.md, or this Playbook.
 
-> **Implementation Status (v0):** All sections in this playbook have been implemented in code. See `v0_MANUAL_TESTING.md` for current status and testing checklist.
+> **Implementation Status (v0):** All sections in this playbook have been implemented in code. See [docs/iterations/v0/v0_MANUAL_TESTING.md](docs/iterations/v0/v0_MANUAL_TESTING.md) for current status and testing checklist.
 
 ---
 

@@ -50,8 +50,8 @@ Notes here are not decisions, tasks, or obligations.
 
 **2026-01-17 – Manual Orchestrator testing**
 
-- A Host project was missing, and the plan (TODO.md) does not specify it to be added at all, without there is nothing to run nor test as the Core project is a library.
-- Manual tests did not include a setup instruction for the general environmant, added this via Plan 5.1 (TODO.md).
+- A Host project was missing, and the plan ([docs/iterations/v0/TODO.md](docs/iterations/v0/TODO.md)) does not specify it to be added at all, without there is nothing to run nor test as the Core project is a library.
+- Manual tests did not include a setup instruction for the general environmant, added this via Plan 5.1 ([docs/iterations/v0/TODO.md](docs/iterations/v0/TODO.md)).
 - Plan 6: Manual Test not possible as Task Claiming cannot be wired to host, as no GitHub client has been chosen yet.
 - Learned: Revisit plans, to include all instruction to complete manual jobs, and plan tests so that they can actually be executed with the current state of the implementation.
 

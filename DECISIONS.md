@@ -289,8 +289,8 @@ REST Projects v2 API explicitly documents GitHub App installation token support 
 
 **References**  
 - GitHub REST API docs: https://docs.github.com/en/rest/projects/projects
-- Limitation analysis: `GITHUB_GRAPHQL_LIMIT.md`
-- RFC: `rfc_unblocking_gh_orchestrator_project_v_2_access.md`
+- Limitation analysis: [docs/iterations/v0/GITHUB_GRAPHQL_LIMIT.md](docs/iterations/v0/GITHUB_GRAPHQL_LIMIT.md)
+- RFC: [docs/iterations/v0/rfc_unblocking_gh_orchestrator_project_v_2_access.md](docs/iterations/v0/rfc_unblocking_gh_orchestrator_project_v_2_access.md)
 ---
 
 ## Decision: Use OpenAI .NET SDK for AI worker integration
