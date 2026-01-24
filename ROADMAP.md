@@ -9,14 +9,14 @@ This roadmap is directional, not a promise.
 **Definition:** Take validated GitHub Issues and generate code changes via AI, opening PRs with real AI-generated content.
 
 **Critical Path (blocking release):**
-- Plan 19: AI Worker integration interface
-- Plan 20: Worker invocation wiring (stub)
-- Plan 21: Prompt engineering and payload builder
-- Plan 22: Real AI worker implementation (OpenAI/Claude)
-- Plan 23: Git operations for AI-generated changes
-- Plan 24: Worker result validation and quality gates
-- Plan 25: Execution reporting with AI attribution
-- Plan 17: v0 release criteria and cutover verification
+- ✅ Plan 19: AI Worker integration interface
+- ✅ Plan 20: Worker invocation wiring
+- ✅ Plan 21: Prompt engineering and payload builder
+- ✅ Plan 22: Real AI worker implementation (OpenAI SDK)
+- ⚠️ Plan 23: Git operations for AI-generated changes (branches + PRs exist, but changes are not applied yet)
+- ⏳ Plan 24: Worker result validation and quality gates
+- ✅ Plan 25: Execution reporting with AI attribution
+- ⏳ Plan 17: v0 release criteria and cutover verification
 
 **Non-critical but important:**
 - Plan 16: Observability, reliability, and logging
@@ -35,18 +35,13 @@ This roadmap is directional, not a promise.
 
 ## Now
 
-- **Plan 19:** AI Worker integration interface (define `IAIWorker` contract)
-- **Plan 20:** Worker invocation wiring (stub with no-op implementation)
-- **Plan 21:** Prompt engineering and `AIPromptBuilder`
+- **Plan 23:** Apply AI-generated file changes to branches before opening PRs
 
 ---
 
 ## Next
 
-- **Plan 22:** Real AI worker (OpenAI/Claude SDK integration)
-- **Plan 23:** Git operations for applying AI changes to branches
 - **Plan 24:** Worker result validation and quality gates
-- **Plan 25:** Enhanced execution reporting with AI attribution
 - **Plan 16:** Structured logging and observability (hardening)
 
 ---
