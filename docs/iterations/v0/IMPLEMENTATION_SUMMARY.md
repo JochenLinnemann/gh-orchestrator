@@ -151,7 +151,7 @@ Use the checklist in `SETUP.md` → "v0 Manual Testing Checklist (Plan 9)"
 **To verify everything works locally:**
 
 ```powershell
-cd c:\Users\JochenLinnemann\Source-Repos\JochenLinnemann\gh-orchestrator
+cd /repos/gh-orchestrator
 
 # Build all projects
 dotnet build
