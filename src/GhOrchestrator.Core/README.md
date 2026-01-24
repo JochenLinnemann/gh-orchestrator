@@ -1,7 +1,7 @@
 # GhOrchestrator.Core
 
-Minimal orchestrator stub using .NET 10 standard library only.
-Implements Playbook v0 Task Quality Gate (section 3.5).
+Core orchestration logic for GH Orchestrator (net10.0).
+Implements Playbook v0 Task Quality Gate (section 3.5) and the task run flow used by the host.
 
 ## Structure
 
@@ -18,7 +18,7 @@ Implements Playbook v0 Task Quality Gate (section 3.5).
 - `RepoPullRequestPlan` — Per-repository branch + pull request payload
 - `TaskRunExecutor` — Builds per-repo PR payloads and executes branch/PR creation via the GitHub client boundary
 - `IGitHubClient` — Interface boundary for GitHub operations (read issue, comment, update project, create branch, open PR)
-- `Orchestrator` — Stateless coordinator (pure validation only, no GitHub I/O yet)
+- `Orchestrator` — Stateless coordinator that validates, claims, plans, and executes via the GitHub client boundary
 
 ## What's Implemented
 
@@ -36,6 +36,9 @@ Implements Playbook v0 Task Quality Gate (section 3.5).
 ✅ Task run planning (run ID formatting + per-repo execution steps)
 ✅ Branch name + pull request payload planning
 ✅ Branch + PR creation via the GitHub client boundary (real I/O lives outside Core)
+✅ OpenAI-backed AI worker (optional; falls back to mock worker when not configured)
+✅ Issue comment reporting format + posting helper
+✅ Task claim planning and Projects V2 field update requests
 
 ## Issue Body Format
 
@@ -102,9 +105,9 @@ Returns structured result:
 
 ## What's NOT Implemented (Intentionally)
 
-❌ Webhook handling  
-❌ Network I/O  
-❌ Worker execution  
+❌ Applying AI-generated file changes to repositories  
+❌ Local git checkout/patch application (PRs are created without file diffs)  
+❌ Additional operating modes (`/ai plan`, CI fix loops, etc.)  
 
 These will be added incrementally as separate changes.
 
@@ -124,5 +127,5 @@ dotnet test --verbosity normal
 ## Dependencies
 
 - .NET 10.0 SDK
+- OpenAI .NET SDK (used by `OpenAIWorker`)
 - xUnit (test framework only)
-- **Zero runtime dependencies** — stdlib only

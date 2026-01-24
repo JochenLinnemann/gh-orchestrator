@@ -102,7 +102,14 @@ Required configuration keys:
   - Alternative: `GH_APP_PRIVATE_KEY` — Raw PEM contents
 - `GH_WEBHOOK_SECRET` — Webhook secret configured in the GitHub App
 - `GH_ALLOWED_ORG` — Organization name where the app is installed (authorization check)
-- `GH_PROJECT_ID` — GitHub Projects V2 **project number** from the URL
+- `GH_PROJECT_ID` — GitHub Projects V2 **project number** from the URL (passed directly to REST endpoints)
+
+Optional AI worker configuration (OpenAI):
+
+- `OPENAI_API_KEY` — OpenAI API key (if unset, the mock worker is used)
+- `OPENAI_MODEL` — Model name (e.g. `gpt-4o-mini`)
+- `OPENAI_TIMEOUT_SECONDS` — Per-request timeout in seconds (positive integer)
+- `OPENAI_MAX_RETRIES` — Retry count for transient failures (non-negative integer)
 
 #### Example `appsettings.Development.json` (do not commit)
 
@@ -112,7 +119,11 @@ Required configuration keys:
   "GH_APP_PRIVATE_KEY_PATH": "/absolute/path/to/gh-app-key.pem",
   "GH_WEBHOOK_SECRET": "your-webhook-secret",
   "GH_ALLOWED_ORG": "ExampleOrganization",
-  "GH_PROJECT_ID": "1"
+  "GH_PROJECT_ID": "1",
+  "OPENAI_API_KEY": "your-openai-key",
+  "OPENAI_MODEL": "gpt-4o-mini",
+  "OPENAI_TIMEOUT_SECONDS": "30",
+  "OPENAI_MAX_RETRIES": "2"
 }
 ```
 
@@ -209,15 +220,13 @@ export GH_APP_PRIVATE_KEY_PATH="$HOME/.ssh/gh-app-key.pem"
 export GH_WEBHOOK_SECRET="your-webhook-secret"
 export GH_ALLOWED_ORG="ExampleOrganization"
 export GH_PROJECT_ID="1"  # Project number from URL, not node ID
+export OPENAI_API_KEY="your-openai-key"
+export OPENAI_MODEL="gpt-4o-mini"
+export OPENAI_TIMEOUT_SECONDS="30"
+export OPENAI_MAX_RETRIES="2"
 ```
 
 ### 5) Run the orchestrator locally
-
-Start your local webhook receiver (implementation-specific) and ensure it:
-
-1. Listens on the port you exposed via the tunnel.
-2. Extracts the raw request body and the `X-Hub-Signature-256` header.
-3. Calls the core handler with `(payload, signatureHeader, GH_WEBHOOK_SECRET)`.
 
 ```powershell
 cd src/GhOrchestrator.Host
@@ -225,6 +234,7 @@ dotnet run
 ```
 
 The app will start listening on `http://localhost:5000`. Your tunnel (ngrok, etc.) should forward to this port.
+Webhook payloads should be sent to `http://localhost:5000/webhook`. A health check is available at `http://localhost:5000/healthz`.
 
 ### 6) Trigger `/ai start`
 
@@ -240,6 +250,7 @@ The app will start listening on `http://localhost:5000`. Your tunnel (ngrok, etc
 - Project fields update to `In Progress` and `AI=running` with a Run ID value.
 - One branch and one PR are created per repository listed in the issue.
 - The report comment includes PR links and any reported risks.
+- **Note:** The current implementation does not apply AI-generated file changes yet; PRs will be empty scaffolds.
 
 **Issue formatting required for validation and planning:**
 - Repositories section:
@@ -251,6 +262,11 @@ The app will start listening on `http://localhost:5000`. Your tunnel (ngrok, etc
 - Constraints section:
   - Header: `## Constraints`
   - Value can be `none` if no constraints
+
+**Project field requirements:**
+- `Status` (single-select)
+- `AI` (single-select)
+- `Run ID` (text)
 
 ---
 
