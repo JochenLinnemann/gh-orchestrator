@@ -25,6 +25,10 @@ public interface IGitHubClient
 
     Task<string> GetDefaultBranch(string repository, CancellationToken cancellationToken = default);
 
+    Task<string> GetRepositoryCloneUrl(string repository, CancellationToken cancellationToken = default);
+
+    Task<string> GetRepositoryAccessToken(string repository, CancellationToken cancellationToken = default);
+
     Task CreateBranch(
         string repository,
         string newBranch,

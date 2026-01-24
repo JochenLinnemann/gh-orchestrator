@@ -253,9 +253,11 @@ public class Orchestrator
             issueCommentEvent.Repository,
             issueCommentEvent.IssueNumber,
             runId);
+        var gitOperations = new GitOperations();
         var executionResult = await TaskRunExecutor.ExecuteAsync(
             gitHubClient,
             _aiWorker,
+            gitOperations,
             task,
             planResult.Plan,
             cancellationToken);

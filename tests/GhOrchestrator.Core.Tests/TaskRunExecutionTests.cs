@@ -24,14 +24,24 @@ public class TaskRunExecutionTests
         {
             ["org/service-a"] = "main"
         });
-        var worker = new FakeAIWorker();
+        var worker = new FakeAIWorker(new AIWorkerResult(new[]
+        {
+            new AIWorkerRepoResult(
+                "org/service-a",
+                true,
+                new[] { new AIWorkerFileChange("README.md", AIWorkerChangeType.Modify, "content") },
+                "log",
+                null)
+        }));
+        var gitOperations = new FakeGitOperations();
 
-        var result = await TaskRunExecutor.ExecuteAsync(client, worker, ValidTask, plan);
+        var result = await TaskRunExecutor.ExecuteAsync(client, worker, gitOperations, ValidTask, plan);
 
         Assert.Single(result.Results);
         Assert.NotNull(result.WorkerResult);
-        Assert.Equal("main", client.BranchesCreated[0].BaseBranch);
-        Assert.Equal("ai/run-42-20260115083045/improve-logging", client.BranchesCreated[0].NewBranch);
+        Assert.Single(gitOperations.Clones);
+        Assert.Equal("main", gitOperations.Clones[0].Branch);
+        Assert.Equal("ai/run-42-20260115083045/improve-logging", gitOperations.Checkouts[0].BranchName);
         Assert.Equal("AI: Improve logging", client.PullRequests[0].Request.Title);
         Assert.Contains("Run: run-42-20260115083045", client.PullRequests[0].Request.Body);
         Assert.Contains("Repo: org/service-a", client.PullRequests[0].Request.Body);
@@ -50,11 +60,15 @@ public class TaskRunExecutionTests
             {
                 ["org/service-a"] = "main",
                 ["org/service-b"] = "develop"
-            },
-            failingRepo: "org/service-a");
-        var worker = new FakeAIWorker();
+            });
+        var worker = new FakeAIWorker(new AIWorkerResult(new[]
+        {
+            new AIWorkerRepoResult("org/service-a", true, new[] { new AIWorkerFileChange("README.md", AIWorkerChangeType.Modify, "content") }, "log", null),
+            new AIWorkerRepoResult("org/service-b", true, new[] { new AIWorkerFileChange("README.md", AIWorkerChangeType.Modify, "content") }, "log", null),
+        }));
+        var gitOperations = new FakeGitOperations { FailCloneForRepo = "org/service-a" };
 
-        var result = await TaskRunExecutor.ExecuteAsync(client, worker, ValidTask, plan);
+        var result = await TaskRunExecutor.ExecuteAsync(client, worker, gitOperations, ValidTask, plan);
 
         Assert.Equal(2, result.Results.Count);
         Assert.Single(result.Results, item => item.Repository == "org/service-a" && !item.IsSuccess);
@@ -78,8 +92,9 @@ public class TaskRunExecutionTests
             new AIWorkerRepoResult("org/service-a", true, Array.Empty<AIWorkerFileChange>(), "log", null)
         });
         var worker = new FakeAIWorker(expectedResult);
+        var gitOperations = new FakeGitOperations();
 
-        var result = await TaskRunExecutor.ExecuteAsync(client, worker, ValidTask, plan);
+        var result = await TaskRunExecutor.ExecuteAsync(client, worker, gitOperations, ValidTask, plan);
 
         Assert.Equal(expectedResult, result.WorkerResult);
         Assert.NotNull(worker.LastRequest);
@@ -89,12 +104,10 @@ public class TaskRunExecutionTests
     private sealed class FakeGitHubClient : IGitHubClient
     {
         private readonly IReadOnlyDictionary<string, string> _defaultBranches;
-        private readonly string? _failingRepo;
 
-        public FakeGitHubClient(IReadOnlyDictionary<string, string> defaultBranches, string? failingRepo = null)
+        public FakeGitHubClient(IReadOnlyDictionary<string, string> defaultBranches)
         {
             _defaultBranches = defaultBranches;
-            _failingRepo = failingRepo;
         }
 
         public List<(string Repository, string NewBranch, string BaseBranch)> BranchesCreated { get; } = new();
@@ -129,18 +142,18 @@ public class TaskRunExecutionTests
             return Task.FromResult(branch);
         }
 
+        public Task<string> GetRepositoryCloneUrl(string repository, CancellationToken cancellationToken = default) =>
+            Task.FromResult($"https://example.com/{repository}.git");
+
+        public Task<string> GetRepositoryAccessToken(string repository, CancellationToken cancellationToken = default) =>
+            Task.FromResult("token");
+
         public Task CreateBranch(
             string repository,
             string newBranch,
             string baseBranch,
-            CancellationToken cancellationToken = default)
-        {
-            if (string.Equals(repository, _failingRepo, StringComparison.OrdinalIgnoreCase))
-                throw new InvalidOperationException("Branch creation failed");
-
-            BranchesCreated.Add((repository, newBranch, baseBranch));
-            return Task.CompletedTask;
-        }
+            CancellationToken cancellationToken = default) =>
+            Task.CompletedTask;
 
         public Task<PullRequestLink> CreatePullRequest(
             string repository,
@@ -167,6 +180,79 @@ public class TaskRunExecutionTests
         {
             LastRequest = request;
             return Task.FromResult(_result);
+        }
+    }
+
+    private sealed class FakeGitOperations : IGitOperations
+    {
+        public List<(string RepositoryUrl, string Destination, string? Branch, string? AccessToken)> Clones { get; } = new();
+
+        public List<(string RepositoryPath, string BranchName, string BaseBranch)> Checkouts { get; } = new();
+
+        public List<(string RepositoryPath, IReadOnlyList<AIWorkerFileChange> Changes)> AppliedChanges { get; } = new();
+
+        public List<(string RepositoryPath, string RunId, string AuthorName, string AuthorEmail)> Commits { get; } = new();
+
+        public List<(string RepositoryPath, string BranchName)> Pushes { get; } = new();
+
+        public string? FailCloneForRepo { get; set; }
+
+        public Task CloneRepositoryAsync(
+            string repositoryUrl,
+            string destinationPath,
+            string? branch = null,
+            string? accessToken = null,
+            CancellationToken cancellationToken = default)
+        {
+            if (!string.IsNullOrWhiteSpace(FailCloneForRepo) &&
+                repositoryUrl.Contains(FailCloneForRepo, StringComparison.OrdinalIgnoreCase))
+            {
+                throw new InvalidOperationException("Clone failed");
+            }
+
+            Clones.Add((repositoryUrl, destinationPath, branch, accessToken));
+            return Task.CompletedTask;
+        }
+
+        public Task FetchAsync(string repositoryPath, CancellationToken cancellationToken = default) => Task.CompletedTask;
+
+        public Task CheckoutBranchAsync(
+            string repositoryPath,
+            string branchName,
+            string baseBranch,
+            CancellationToken cancellationToken = default)
+        {
+            Checkouts.Add((repositoryPath, branchName, baseBranch));
+            return Task.CompletedTask;
+        }
+
+        public Task ApplyFileChangesAsync(
+            string repositoryPath,
+            IEnumerable<AIWorkerFileChange> changes,
+            CancellationToken cancellationToken = default)
+        {
+            AppliedChanges.Add((repositoryPath, changes.ToArray()));
+            return Task.CompletedTask;
+        }
+
+        public Task CommitAsync(
+            string repositoryPath,
+            string runId,
+            string authorName,
+            string authorEmail,
+            CancellationToken cancellationToken = default)
+        {
+            Commits.Add((repositoryPath, runId, authorName, authorEmail));
+            return Task.CompletedTask;
+        }
+
+        public Task PushAsync(
+            string repositoryPath,
+            string branchName,
+            CancellationToken cancellationToken = default)
+        {
+            Pushes.Add((repositoryPath, branchName));
+            return Task.CompletedTask;
         }
     }
 }
