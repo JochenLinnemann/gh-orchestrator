@@ -2,7 +2,7 @@ using System.Diagnostics;
 
 namespace GhOrchestrator.Core;
 
-public class GitOperations
+public class GitOperations : IGitOperations
 {
     private const string AiAttribution = "Attribution: AI-generated changes";
 

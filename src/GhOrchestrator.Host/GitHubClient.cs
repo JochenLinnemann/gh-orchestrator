@@ -95,6 +95,26 @@ public sealed class GitHubClient : IGitHubClient
         return branch;
     }
 
+    public async Task<string> GetRepositoryCloneUrl(string repository, CancellationToken cancellationToken = default)
+    {
+        using var request = await CreateRequest(HttpMethod.Get, repository, $"repos/{repository}", cancellationToken);
+        using var response = await _httpClient.SendAsync(request, cancellationToken);
+        await EnsureSuccess(response, cancellationToken);
+
+        using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync(cancellationToken));
+        var cloneUrl = document.RootElement.GetProperty("clone_url").GetString();
+
+        if (string.IsNullOrWhiteSpace(cloneUrl))
+            throw new InvalidOperationException("Clone URL not found");
+
+        return cloneUrl;
+    }
+
+    public Task<string> GetRepositoryAccessToken(string repository, CancellationToken cancellationToken = default)
+    {
+        return _tokenProvider.GetInstallationToken(repository, cancellationToken);
+    }
+
     public async Task CreateBranch(
         string repository,
         string newBranch,

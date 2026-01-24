@@ -313,6 +313,12 @@ Constraints: none
         public Task<string> GetDefaultBranch(string repository, CancellationToken cancellationToken = default) =>
             Task.FromResult("main");
 
+        public Task<string> GetRepositoryCloneUrl(string repository, CancellationToken cancellationToken = default) =>
+            Task.FromResult($"https://example.com/{repository}.git");
+
+        public Task<string> GetRepositoryAccessToken(string repository, CancellationToken cancellationToken = default) =>
+            Task.FromResult("token");
+
         public Task CreateBranch(
             string repository,
             string newBranch,
