@@ -171,4 +171,51 @@ public class IssueCommentReportFormatterTests
         Assert.Contains("### Validation Warnings", result);
         Assert.Contains("AI worker returned no file changes.", result);
     }
+
+    [Fact]
+    public void Format_IgnoresDuplicateRepoResultsForFileChanges()
+    {
+        var executionResults = new[]
+        {
+            RepoExecutionResult.Success(
+                "org/service-a",
+                "ai/run-1",
+                "main",
+                new PullRequestLink("org/service-a", "https://github.com/org/service-a/pull/10"))
+        };
+        var workerResult = new AIWorkerResult(new[]
+        {
+            new AIWorkerRepoResult(
+                "org/service-a",
+                true,
+                new[] { new AIWorkerFileChange("src/one.cs", AIWorkerChangeType.Modify, "content") },
+                "log",
+                null),
+            new AIWorkerRepoResult(
+                "org/service-a",
+                true,
+                new[] { new AIWorkerFileChange("src/two.cs", AIWorkerChangeType.Modify, "content") },
+                "log",
+                null)
+        });
+        var validationResult = new WorkerResultValidationResult(new[]
+        {
+            WorkerResultRepoValidationResult.Failure(
+                "org/service-a",
+                new[] { "AI worker returned duplicate results for repository." })
+        });
+        var executionResult = new TaskRunExecutionResult(executionResults, workerResult, validationResult);
+
+        var result = IssueCommentReportFormatter.Format(
+            "Duplicates detected.",
+            "No tests.",
+            executionResults,
+            executionResult,
+            Array.Empty<string>());
+
+        Assert.Contains("### Files Changed", result);
+        Assert.Contains("src/one.cs", result);
+        Assert.DoesNotContain("src/two.cs", result);
+        Assert.Contains("### Validation Warnings", result);
+    }
 }

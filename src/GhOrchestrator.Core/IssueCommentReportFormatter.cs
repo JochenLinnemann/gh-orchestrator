@@ -149,9 +149,10 @@ public static class IssueCommentReportFormatter
         }
 
         var fileChangesByRepo = executionResult.WorkerResult.RepoResults
+            .GroupBy(result => result.Repository, StringComparer.OrdinalIgnoreCase)
             .ToDictionary(
-                result => result.Repository,
-                result => result.FileChanges,
+                group => group.Key,
+                group => group.First().FileChanges,
                 StringComparer.OrdinalIgnoreCase);
 
         builder.AppendLine();
