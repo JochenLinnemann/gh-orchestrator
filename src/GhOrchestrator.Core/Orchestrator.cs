@@ -276,6 +276,47 @@ public class Orchestrator
                 ex.Message);
         }
 
+        // 7. Update Kanban state: transition to blocked (waiting for review)
+        _logger.LogInformation(
+            "Transitioning task to blocked: repo={Repository}, issue={IssueNumber}, runId={RunId}",
+            issueCommentEvent.Repository,
+            issueCommentEvent.IssueNumber,
+            runId);
+        try
+        {
+            var taskSnapshot = await gitHubClient.GetProjectTaskState(
+                issueCommentEvent.Repository,
+                projectId,
+                issueCommentEvent.IssueNumber,
+                cancellationToken);
+
+            var completionPlan = TaskCompletionPlanner.Plan(taskSnapshot.State);
+            if (completionPlan.IsValid && !completionPlan.IsAlreadyCompleted && completionPlan.Updates.Count > 0)
+            {
+                await gitHubClient.UpdateProjectFields(
+                    issueCommentEvent.Repository,
+                    projectId,
+                    issueCommentEvent.IssueNumber,
+                    completionPlan.Updates,
+                    cancellationToken);
+
+                _logger.LogInformation(
+                    "Task transitioned to blocked: repo={Repository}, issue={IssueNumber}, runId={RunId}",
+                    issueCommentEvent.Repository,
+                    issueCommentEvent.IssueNumber,
+                    runId);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(
+                "Failed to transition task to blocked: repo={Repository}, issue={IssueNumber}, runId={RunId}, error={Error}",
+                issueCommentEvent.Repository,
+                issueCommentEvent.IssueNumber,
+                runId,
+                ex.Message);
+        }
+
         _logger.LogInformation(
             "Orchestration completed: repo={Repository}, issue={IssueNumber}, runId={RunId}, resultCount={ResultCount}",
             issueCommentEvent.Repository,

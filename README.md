@@ -6,18 +6,27 @@ ___GitHub is the system of record. AI is the worker.___
 
 GH Orchestrator is not an agent framework. It is an execution layer with guardrails.
 
-## Current Implementation Status
+## Current Implementation Status (v0)
 
-The repository has a working end-to-end orchestration loop, but some pieces are still intentionally minimal:
+✅ **Complete end-to-end orchestration loop:**
 
-- ✅ Receives GitHub `issue_comment` webhooks and validates `/ai start`
-- ✅ Claims tasks by updating Projects V2 fields (`AI`, `Status`, `Run ID`) via REST
-- ✅ Plans runs and opens one branch + one PR per repo
-- ✅ Posts a summary comment back to the issue with PR links
-- ✅ Optional OpenAI-backed worker (falls back to a mock worker when not configured)
-- ⚠️ AI worker output is **not yet applied** to repositories, so PRs are currently empty scaffolds
+1. ✅ Receives GitHub `issue_comment` webhooks and validates `/ai start`
+2. ✅ Validates task via quality gates (issue exists, repos listed, criteria present, no destructive operations)
+3. ✅ Claims tasks atomically by updating Projects V2 fields (`AI = running`, `Status = In Progress`, `Run ID`)
+4. ✅ Plans execution with per-repo branch names following `ai/<run-id>/<slug>` pattern
+5. ✅ Invokes AI worker (OpenAI or mock) with bounded task context
+6. ✅ Validates AI worker results (no binary files, no schema changes, reasonable delete ratios)
+7. ✅ Applies AI-generated file changes to branches
+8. ✅ Commits and pushes branches, creates pull requests
+9. ✅ Posts summary comment to issue with PR links and testing instructions
+10. ✅ Transitions task to `AI = blocked` (waiting for review)
 
-See `ROADMAP.md` for in-progress work and remaining gaps.
+**Worker implementation:**
+- ✅ Optional OpenAI-backed worker with GPT-4 support
+- ✅ Fallback to mock worker when not configured
+- ✅ AI attribution in commit messages
+
+**Ready for manual testing:** See [Manual Testing Guide](#manual-testing-for-v0-cutover) below.
 
 ## Project Overview
 
@@ -88,6 +97,43 @@ For system structure and trust boundaries, see `ARCHITECTURE.md`.
 See:
 - `SETUP.md` → **Local Development (v0)** for configuration and run commands.
 - `SETUP.md` → **Manual Webhook Testing (Plan 5)** for the end-to-end trigger.
+
+---
+
+## Manual Testing for v0 Cutover
+
+**Before v0 release, execute Plan 9 (end-to-end manual verification):**
+
+1. **Setup:**
+   - Configure orchestrator with real GitHub App credentials
+   - Create a test organization or use personal repos
+   - Set up a GitHub Project with `AI`, `Status`, `Run ID` fields
+
+2. **Execute one complete task:**
+   - Create a GitHub Issue with:
+     - Clear task description
+     - Acceptance criteria (explicit checklist)
+     - Repos field (comma-separated: `owner/repo1, owner/repo2`)
+   - Comment `/ai start` on the Issue
+   - Observe:
+     - Task claimed: `AI = running`, `Status = In Progress`, `Run ID` populated
+     - Branch created per repo with naming pattern `ai/<run-id>/<slug>`
+     - PR opened per repo with AI-generated changes
+     - Issue comment posted with PR links and testing instructions
+     - Task transitioned to `AI = blocked` after PR creation
+
+3. **Validation:**
+   - ✅ PRs contain non-empty, AI-generated code changes
+   - ✅ Branch names follow convention
+   - ✅ Commits attributed to `gh-orchestrator[bot]`
+   - ✅ Issue comment includes PR links
+   - ✅ No secrets leaked in comments or commits
+   - ✅ Kanban state accurate
+
+4. **Document findings:**
+   - Update `ROADMAP.md` with outcomes
+   - Record any gaps in `RETRO.md`
+   - If gaps discovered, create ADR in `DECISIONS.md`
 
 ---
 

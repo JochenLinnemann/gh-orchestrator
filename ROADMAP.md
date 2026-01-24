@@ -13,50 +13,43 @@ This roadmap is directional, not a promise.
 - ✅ Plan 20: Worker invocation wiring
 - ✅ Plan 21: Prompt engineering and payload builder
 - ✅ Plan 22: Real AI worker implementation (OpenAI SDK)
-- ⚠️ Plan 23: Git operations for AI-generated changes (branches + PRs exist, but changes are not applied yet)
-- ⏳ Plan 24: Worker result validation and quality gates
+- ✅ Plan 23: Git operations for AI-generated changes (branches + PRs with file changes applied)
+- ✅ Plan 24: Worker result validation and quality gates
 - ✅ Plan 25: Execution reporting with AI attribution
+- ✅ **NEW:** Post-execution Kanban state transition (`AI = blocked`)
 - ⏳ Plan 17: v0 release criteria and cutover verification
 
 **Non-critical but important:**
 - Plan 16: Observability, reliability, and logging
-- Plan 9: End-to-end manual verification with real repos
+- Plan 9: End-to-end manual verification with real repos (REQUIRED before cutover)
 
 **Success Criteria:**
-- Comment `/ai start` on a GitHub Issue
-- Orchestrator validates, claims, invokes AI worker
-- AI generates code for 1–2 repos (not empty)
-- Branches are created with changes committed
-- PRs open with generated code and metadata
-- Issue receives summary comment with PR links and how to test
-- Human can review, iterate, and merge
+- ✅ Comment `/ai start` on a GitHub Issue
+- ✅ Orchestrator validates, claims, invokes AI worker
+- ✅ AI generates code for 1–2 repos (not empty)
+- ✅ Branches are created with changes committed
+- ✅ PRs open with generated code and metadata
+- ✅ Issue receives summary comment with PR links and how to test
+- ✅ Task state transitions to `AI = blocked` (awaiting review)
+- ⏳ Human can review, iterate, and merge (requires Plan 9 validation)
 
 ---
 
 ## Now
 
-- **Plan 23:** Apply AI-generated file changes to branches before opening PRs
+- **Plan 9:** End-to-end manual verification with real repos (REQUIRED before v0 release)
+  - Execute one complete task from Issue to merged PR
+  - Verify file changes are applied and non-empty
+  - Document outcomes and gaps
 
 ---
 
-## Next
-
-- **Plan 24:** Worker result validation and quality gates
-- **Plan 16:** Structured logging and observability (hardening)
-
----
-
-## Then (before v0 release)
+## Next (immediately after Plan 9)
 
 - **Plan 17:** v0 acceptance criteria and cutover
-  - **Acceptance Criteria:**
-    - One GitHub Issue → claim → branches → PRs with AI-generated changes → report
-    - Tests cover Critical Path; non-v0 tests marked as pending where appropriate
-    - Plan 9 executed with real repos; outcomes and gaps recorded
-    - ADRs created for any scope changes discovered
-    - PRs contain AI-generated code changes, not empty branches
-    - Obsolete methods cleaned up from `Orchestrator.cs`
-  - **Plan 9:** End-to-end manual verification (execute v0 flow with real repos)
+  - Incorporate Plan 9 findings
+  - Mark non-v0 tests if needed
+  - Create final ADRs for scope changes
 
 ---
 

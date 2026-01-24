@@ -270,6 +270,52 @@ Webhook payloads should be sent to `http://localhost:5000/webhook`. A health che
 
 ---
 
+## v0 Manual Testing Checklist (Plan 9)
+
+**Execute this checklist before v0 release cutover:**
+
+### Setup Phase
+- [ ] GitHub App created with organization project + repo access
+- [ ] Test repository created in organization (not personal)
+- [ ] Projects V2 board created with `AI`, `Status`, `Run ID` fields
+- [ ] Orchestrator running locally with tunnel (ngrok/etc.)
+- [ ] Environment variables configured (App ID, key, webhook secret, org, project ID)
+
+### Execution Phase
+- [ ] Create GitHub Issue with proper formatting (repos, criteria, constraints)
+- [ ] Add Issue to Projects V2 board
+- [ ] Comment `/ai start` on Issue
+- [ ] Observe task claimed: Project fields update to `AI=running`, `Status=In Progress`, `Run ID` populated
+- [ ] Observe execution: logs show planning, AI invocation, validation
+
+### Validation Phase
+- [ ] **Branch created per repo** with naming: `ai/<run-id>/<slug>`
+- [ ] **PR opened per repo** with title containing "AI:"
+- [ ] **PR body includes:**
+  - Run ID and repository reference
+  - Link to tracking issue
+  - Task description
+- [ ] **PR contains non-empty file changes** (not scaffold)
+- [ ] **Commit message includes:**
+  - Subject: `AI: Apply changes for {runId}`
+  - AI attribution in body
+- [ ] **Issue comment posted** with:
+  - PR links (one per repo)
+  - Summary of what changed
+  - Testing instructions
+  - Risk notes (if constraints present)
+- [ ] **Kanban state updated:** `AI = blocked` (waiting for review)
+- [ ] **No secrets leaked** in comments, commits, or PRs
+- [ ] **Commit author:** `gh-orchestrator[bot]`
+
+### Results Recording
+- [ ] Execute review/merge flow (manual)
+- [ ] Document outcomes in `ROADMAP.md` Plan 9 section
+- [ ] If gaps found, create ADR in `DECISIONS.md`
+- [ ] Update `RETRO.md` with any reflections
+
+---
+
 ## Deployment Notes
 
 - The orchestrator is designed to be **self-hosted**
