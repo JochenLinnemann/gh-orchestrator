@@ -103,26 +103,6 @@ public class Orchestrator
     }
 
     /// <summary>
-    /// Execute a validated task.
-    /// TODO: Invoke worker
-    /// TODO: GitHub API calls (create branches, open PRs)
-    /// </summary>
-    public void ExecuteTask(TaskSpec task)
-    {
-        throw new NotImplementedException("Worker invocation not yet implemented");
-    }
-
-    /// <summary>
-    /// Report execution result back to GitHub.
-    /// TODO: Post comment on Issue
-    /// TODO: Update Project board
-    /// </summary>
-    public void ReportResult(TaskSpec task, bool success, string message)
-    {
-        throw new NotImplementedException("GitHub reporting not yet implemented");
-    }
-
-    /// <summary>
     /// Orchestrate the complete task execution flow: validate, claim, plan, execute.
     /// </summary>
     public async Task<OrchestratorResult> ProcessTaskAsync(
