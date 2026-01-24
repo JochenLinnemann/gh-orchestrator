@@ -1,0 +1,18 @@
+mode: Mainline
+assembly-informational-format: '{FullSemVer}'
+branches:
+  main:
+    regex: ^main$
+    tag: ''
+    increment: patch
+    prevent-increment-of-merged-branch-version: true
+  feature:
+    regex: ^(feature|ai)/.*
+    tag: useBranchName
+    increment: patch
+    track-merge-target: false
+  pull-request:
+    tag: pr
+    increment: inherit
+ignore:
+  sha: []
