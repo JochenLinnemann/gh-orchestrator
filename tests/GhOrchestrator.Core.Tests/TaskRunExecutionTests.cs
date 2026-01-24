@@ -101,6 +101,36 @@ public class TaskRunExecutionTests
         Assert.Equal("org/service-a", worker.LastRequest!.Repositories[0]);
     }
 
+    [Fact]
+    public async Task ExecuteAsync_SkipsReposThatFailValidation()
+    {
+        var plan = new TaskRunPlan(
+            RunId: "run-42-20260115083045",
+            Repos: new[] { "org/service-a" },
+            Steps: Array.Empty<TaskRunStep>());
+        var client = new FakeGitHubClient(new Dictionary<string, string>
+        {
+            ["org/service-a"] = "main"
+        });
+        var worker = new FakeAIWorker(new AIWorkerResult(new[]
+        {
+            new AIWorkerRepoResult(
+                "org/service-a",
+                true,
+                new[] { new AIWorkerFileChange("db/schema.sql", AIWorkerChangeType.Modify, "alter table") },
+                "log",
+                null)
+        }));
+        var gitOperations = new FakeGitOperations();
+
+        var result = await TaskRunExecutor.ExecuteAsync(client, worker, gitOperations, ValidTask, plan);
+
+        Assert.Single(result.Results);
+        Assert.False(result.Results[0].IsSuccess);
+        Assert.Empty(gitOperations.Clones);
+        Assert.Empty(client.PullRequests);
+    }
+
     private sealed class FakeGitHubClient : IGitHubClient
     {
         private readonly IReadOnlyDictionary<string, string> _defaultBranches;

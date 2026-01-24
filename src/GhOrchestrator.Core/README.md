@@ -39,6 +39,8 @@ Implements Playbook v0 Task Quality Gate (section 3.5) and the task run flow use
 ✅ OpenAI-backed AI worker (optional; falls back to mock worker when not configured)
 ✅ Issue comment reporting format + posting helper
 ✅ Task claim planning and Projects V2 field update requests
+✅ Git operations to apply AI changes, commit with attribution, and push branches
+✅ Worker result validation (repo matching, destructive change checks, schema-change detection)
 
 ## Issue Body Format
 
@@ -105,8 +107,8 @@ Returns structured result:
 
 ## What's NOT Implemented (Intentionally)
 
-❌ Applying AI-generated file changes to repositories  
-❌ Local git checkout/patch application (PRs are created without file diffs)  
+❌ Binary file changes (text-only writes; binary content is rejected)  
+❌ Full lint/format enforcement (only basic text validation is applied)  
 ❌ Additional operating modes (`/ai plan`, CI fix loops, etc.)  
 
 These will be added incrementally as separate changes.
