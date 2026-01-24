@@ -48,7 +48,9 @@ public sealed class GitHubAppJwtProvider
         }
         catch (Exception ex)
         {
-            throw new InvalidOperationException($"Failed to import RSA private key from PEM. Key length: {privateKeyPem.Length}, first 50 chars: {privateKeyPem[..Math.Min(50, privateKeyPem.Length)]}", ex);
+            throw new InvalidOperationException(
+                $"Failed to import RSA private key from PEM. Key length: {privateKeyPem.Length}.",
+                ex);
         }
     }
 }
