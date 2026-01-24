@@ -49,6 +49,13 @@ This roadmap is directional, not a promise.
 ## Then (before v0 release)
 
 - **Plan 17:** v0 acceptance criteria and cutover
+  - **Acceptance Criteria:**
+    - One GitHub Issue → claim → branches → PRs with AI-generated changes → report
+    - Tests cover Critical Path; non-v0 tests marked as pending where appropriate
+    - Plan 9 executed with real repos; outcomes and gaps recorded
+    - ADRs created for any scope changes discovered
+    - PRs contain AI-generated code changes, not empty branches
+    - Obsolete methods cleaned up from `Orchestrator.cs`
   - **Plan 9:** End-to-end manual verification (execute v0 flow with real repos)
 
 ---
