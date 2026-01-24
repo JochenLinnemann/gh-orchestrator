@@ -310,7 +310,7 @@ Tasks (in order)
 
 ---
 
-## 🟧 Plan 25: Execution reporting and AI attribution
+## ✅ Plan 25: Execution reporting and AI attribution
 
 Goal: Update issue comment reports to include AI execution details and confidence signals.
 

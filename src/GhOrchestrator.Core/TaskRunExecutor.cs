@@ -166,7 +166,7 @@ public static class TaskRunExecutor
             }
         }
 
-        return new TaskRunExecutionResult(executionResults, workerResult);
+        return new TaskRunExecutionResult(executionResults, workerResult, validationResult);
     }
 
     private static PullRequestRequest BuildPullRequestRequest(

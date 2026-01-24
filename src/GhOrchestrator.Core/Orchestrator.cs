@@ -282,7 +282,7 @@ public class Orchestrator
                 task,
                 summary,
                 testInstructions,
-                executionResult.Results,
+                executionResult,
                 riskNotes,
                 cancellationToken);
         }

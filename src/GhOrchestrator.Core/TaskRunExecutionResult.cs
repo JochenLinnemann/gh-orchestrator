@@ -4,7 +4,8 @@ namespace GhOrchestrator.Core;
 
 public record TaskRunExecutionResult(
     IReadOnlyList<RepoExecutionResult> Results,
-    AIWorkerResult WorkerResult)
+    AIWorkerResult WorkerResult,
+    WorkerResultValidationResult ValidationResult)
 {
     public bool IsSuccessful => Results.All(result => result.IsSuccess);
 

@@ -16,20 +16,35 @@ public class IssueCommentReportServiceTests
             AcceptanceCriteria: "Tests pass",
             Constraints: "none");
         var service = new IssueCommentReportService();
+        var executionResults = new[]
+        {
+            RepoExecutionResult.Success(
+                "org/service-a",
+                "ai/run-1",
+                "main",
+                new PullRequestLink("org/service-a", "https://github.com/org/service-a/pull/10"))
+        };
+        var workerResult = new AIWorkerResult(new[]
+        {
+            new AIWorkerRepoResult(
+                "org/service-a",
+                true,
+                new[] { new AIWorkerFileChange("README.md", AIWorkerChangeType.Modify, "content") },
+                "log",
+                null)
+        });
+        var validationResult = new WorkerResultValidationResult(new[]
+        {
+            WorkerResultRepoValidationResult.Success("org/service-a")
+        });
+        var executionResult = new TaskRunExecutionResult(executionResults, workerResult, validationResult);
 
         await service.PostReportAsync(
             client,
             task,
             "Updated logging.",
             "Run `dotnet test`.",
-            new[]
-            {
-                RepoExecutionResult.Success(
-                    "org/service-a",
-                    "ai/run-1",
-                    "main",
-                    new PullRequestLink("org/service-a", "https://github.com/org/service-a/pull/10"))
-            },
+            executionResult,
             new[] { "Touches shared logging middleware." });
 
         Assert.Equal("org/main", client.LastCommentRepository);
@@ -40,6 +55,7 @@ public class IssueCommentReportServiceTests
         Assert.Contains("✅ org/service-a", client.LastCommentBody);
         Assert.Contains("https://github.com/org/service-a/pull/10", client.LastCommentBody);
         Assert.Contains("Run \\`dotnet test\\`.", client.LastCommentBody);
+        Assert.Contains("## Execution Details", client.LastCommentBody);
         Assert.Contains("Touches shared logging middleware.", client.LastCommentBody);
     }
 

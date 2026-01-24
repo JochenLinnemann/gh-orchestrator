@@ -31,6 +31,7 @@ public sealed class OpenAIWorker : IAIWorker
         };
 
         Exception? lastException = null;
+        var stopwatch = System.Diagnostics.Stopwatch.StartNew();
 
         for (var attempt = 0; attempt <= _configuration.MaxRetries; attempt++)
         {
@@ -44,7 +45,9 @@ public sealed class OpenAIWorker : IAIWorker
                     new ChatCompletionOptions(),
                     timeoutCts.Token);
                 var responseText = completion.Value.Content.FirstOrDefault()?.Text ?? string.Empty;
-                return OpenAIWorkerResponseParser.Parse(responseText, request.Repositories);
+                var workerResult = OpenAIWorkerResponseParser.Parse(responseText, request.Repositories);
+                var metadata = BuildMetadata(_configuration.Model, stopwatch.Elapsed);
+                return workerResult with { Metadata = metadata };
             }
             catch (Exception ex) when (IsRetryable(ex) && attempt < _configuration.MaxRetries)
             {
@@ -101,5 +104,18 @@ public sealed class OpenAIWorker : IAIWorker
             request.Policies);
 
         return AIPromptBuilder.Build(promptRequest);
+    }
+
+    private static AIWorkerExecutionMetadata BuildMetadata(
+        string model,
+        TimeSpan elapsed)
+    {
+        return new AIWorkerExecutionMetadata(
+            model,
+            elapsed,
+            null,
+            null,
+            null,
+            Array.Empty<string>());
     }
 }

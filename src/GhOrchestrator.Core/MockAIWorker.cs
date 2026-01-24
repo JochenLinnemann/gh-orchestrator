@@ -22,6 +22,14 @@ public sealed class MockAIWorker : IAIWorker
             request.Repositories.Count,
             request.Task.IssueNumber);
 
-        return Task.FromResult(new AIWorkerResult(Array.Empty<AIWorkerRepoResult>()));
+        var metadata = new AIWorkerExecutionMetadata(
+            "mock",
+            TimeSpan.Zero,
+            null,
+            null,
+            "low",
+            new[] { "Mock worker returned no changes." });
+
+        return Task.FromResult(new AIWorkerResult(Array.Empty<AIWorkerRepoResult>(), metadata));
     }
 }
