@@ -47,3 +47,23 @@ Notes here are not decisions, tasks, or obligations.
 - After ~70k tokens, still had 1 of 55 tests failing on edge case (/ai start immediately followed by /ai command with no content between).
 - Signal to stop: when debugging effort exceeds value of edge case fix. 54/55 passing (98%) was functional enough to pause.
 - Learned: Complex regex/parsing edge cases may need simpler reproduction outside full test suite. Consider standalone minimal repro before deep test runner debugging.
+
+**2026-01-17 – Manual Orchestrator testing**
+
+- A Host project was missing, and the plan (TODO.md) does not specify it to be added at all, without there is nothing to run nor test as the Core project is a library.
+- Manual tests did not include a setup instruction for the general environmant, added this via Plan 5.1 (TODO.md).
+- Plan 6: Manual Test not possible as Task Claiming cannot be wired to host, as no GitHub client has been chosen yet.
+- Learned: Revisit plans, to include all instruction to complete manual jobs, and plan tests so that they can actually be executed with the current state of the implementation.
+
+**2026-01-17 – Test environment assumptions**
+
+- When planning manual test procedures, the checklist should verify: (a) all required dependencies/projects exist, (b) external service choices are locked in (e.g., GitHub client implementation), (c) configuration is documented. 
+- Both recent issues (missing Host, no GitHub client) were blockers discovered during execution rather than planning. Earlier validation could have surfaced these gaps.
+
+**2026-01-18 – REST API integration uncertainty**
+
+- Implemented GitHub Projects v2 REST API calls without prior verification that endpoints/response formats matched implementation assumptions.
+- Added extensive debug code (Console.WriteLine, file writes) when tests failed, but debug output didn't help diagnose the real issue (endpoint mismatch with tests).
+- Root cause: tests had brittle mocks that didn't reflect all API calls the refactored code made.
+- Lessons: (1) Verify API contract before full implementation (POC call first), (2) use structured logging not debug spew, (3) keep unit test mocks simple with clear failure messages, (4) document expected request/response formats upfront in ARCHITECTURE.md.
+

@@ -81,6 +81,7 @@ public static class RunPreflight
     {
         var searchTexts = new[]
         {
+            taskSpec.Title ?? "",
             taskSpec.Description ?? "",
             taskSpec.AcceptanceCriteria ?? "",
             taskSpec.Constraints ?? "",

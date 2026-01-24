@@ -6,6 +6,19 @@ ___GitHub is the system of record. AI is the worker.___
 
 GH Orchestrator is not an agent framework. It is an execution layer with guardrails.
 
+## Current Implementation Status
+
+The repository has a working end-to-end orchestration loop, but some pieces are still intentionally minimal:
+
+- ✅ Receives GitHub `issue_comment` webhooks and validates `/ai start`
+- ✅ Claims tasks by updating Projects V2 fields (`AI`, `Status`, `Run ID`) via REST
+- ✅ Plans runs and opens one branch + one PR per repo
+- ✅ Posts a summary comment back to the issue with PR links
+- ✅ Optional OpenAI-backed worker (falls back to a mock worker when not configured)
+- ⚠️ AI worker output is **not yet applied** to repositories, so PRs are currently empty scaffolds
+
+See `ROADMAP.md` for in-progress work and remaining gaps.
+
 ## Project Overview
 
 GH Orchestrator is a small, self-hosted service that connects GitHub Issues and Projects to AI-powered code execution in a controlled, reviewable way.
@@ -63,6 +76,18 @@ This repository focuses on defining **behavior, guardrails, and architecture** f
 Detailed setup and deployment instructions live in `SETUP.md`.
 
 For system structure and trust boundaries, see `ARCHITECTURE.md`.
+
+---
+
+## Quick Start (local manual test)
+
+1. Follow the local configuration steps in `SETUP.md` (environment variables or `appsettings.Development.json`).
+2. Start the host (`dotnet run` from `src/GhOrchestrator.Host`).
+3. Use the manual webhook steps in `SETUP.md` to trigger `/ai start`.
+
+See:
+- `SETUP.md` → **Local Development (v0)** for configuration and run commands.
+- `SETUP.md` → **Manual Webhook Testing (Plan 5)** for the end-to-end trigger.
 
 ---
 

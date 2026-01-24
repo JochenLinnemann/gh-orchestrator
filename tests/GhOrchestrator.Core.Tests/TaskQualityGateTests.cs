@@ -8,6 +8,7 @@ public class TaskQualityGateTests
         var task = new TaskSpec(
             IssueNumber: 1,
             Repository: "org/repo",
+            Title: "Add logging",
             Description: "Add logging",
             Repos: new[] { "org/repo" },
             TriggerUser: "alice",
@@ -27,6 +28,7 @@ public class TaskQualityGateTests
         var task = new TaskSpec(
             IssueNumber: 1,
             Repository: "org/repo",
+            Title: "Add logging",
             Description: "Add logging",
             Repos: new[] { "org/repo" },
             TriggerUser: "alice",
@@ -46,6 +48,7 @@ public class TaskQualityGateTests
         var task = new TaskSpec(
             IssueNumber: 1,
             Repository: "org/repo",
+            Title: "Add logging",
             Description: "Add logging",
             Repos: new[] { "org/repo" },
             TriggerUser: "alice",
@@ -65,6 +68,7 @@ public class TaskQualityGateTests
         var task = new TaskSpec(
             IssueNumber: 1,
             Repository: "org/repo",
+            Title: "Add logging",
             Description: "Add logging",
             Repos: new[] { "org/repo" },
             TriggerUser: "alice",
@@ -85,6 +89,7 @@ public class TaskQualityGateTests
         var task = new TaskSpec(
             IssueNumber: 1,
             Repository: "org/repo",
+            Title: "Add logging",
             Description: "Add logging",
             Repos: new[] { "org/repo" },
             TriggerUser: "alice",
@@ -104,6 +109,7 @@ public class TaskQualityGateTests
         var task = new TaskSpec(
             IssueNumber: 1,
             Repository: "org/repo",
+            Title: "Add logging",
             Description: "Add logging",
             Repos: Array.Empty<string>(),
             TriggerUser: "alice",
@@ -124,6 +130,7 @@ public class TaskQualityGateTests
         var task = new TaskSpec(
             IssueNumber: 1,
             Repository: "org/repo",
+            Title: "Add logging",
             Description: "Add logging",
             Repos: new[] { "invalid-format" },
             TriggerUser: "alice",
@@ -143,6 +150,7 @@ public class TaskQualityGateTests
         var task = new TaskSpec(
             IssueNumber: 1,
             Repository: "org/repo",
+            Title: "Update across services",
             Description: "Update across services",
             Repos: new[] { "org/service-a", "org/service-b", "org/service-c" },
             TriggerUser: "alice",
@@ -162,6 +170,7 @@ public class TaskQualityGateTests
         var task = new TaskSpec(
             IssueNumber: 1,
             Repository: "org/repo",
+            Title: "Add logging",
             Description: "Add logging",
             Repos: new[] { "org/repo" },
             TriggerUser: null,

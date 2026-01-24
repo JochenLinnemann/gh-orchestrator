@@ -1,7 +1,7 @@
 # GhOrchestrator.Core
 
-Minimal orchestrator stub using .NET 10 standard library only.
-Implements Playbook v0 Task Quality Gate (section 3.5).
+Core orchestration logic for GH Orchestrator (net10.0).
+Implements Playbook v0 Task Quality Gate (section 3.5) and the task run flow used by the host.
 
 ## Structure
 
@@ -10,7 +10,15 @@ Implements Playbook v0 Task Quality Gate (section 3.5).
 - `CommandParser` — Parses `/ai start` commands, repository lists, acceptance criteria, and constraints from Issue bodies
 - `TaskQualityGate` — Validates tasks against Playbook v0 quality constraints
 - `ValidationResult` — Structured validation result with error messages
-- `Orchestrator` — Stateless coordinator (pure validation only, no GitHub I/O yet)
+- `TaskValidationResult` — Combined result for Task Quality Gate + preflight checks
+- `TaskRunPlan` — Planned execution run (run ID, repos, and execution steps)
+- `TaskRunPlanner` — Deterministic planner that produces a task run plan
+- `TaskSlugFormatter` — Formats a short task slug for branch naming (issue title first, description fallback, capped length)
+- `BranchNameFormatter` — Formats branch names using the Playbook convention
+- `RepoPullRequestPlan` — Per-repository branch + pull request payload
+- `TaskRunExecutor` — Builds per-repo PR payloads and executes branch/PR creation via the GitHub client boundary
+- `IGitHubClient` — Interface boundary for GitHub operations (read issue, comment, update project, create branch, open PR)
+- `Orchestrator` — Stateless coordinator that validates, claims, plans, and executes via the GitHub client boundary
 
 ## What's Implemented
 
@@ -24,7 +32,15 @@ Implements Playbook v0 Task Quality Gate (section 3.5).
   3. Repos must be unambiguous in format (`owner/repo`)
   4. Constraints must be stated (or explicitly marked as `none`)
 
-✅ 30 xUnit tests (all passing)
+✅ xUnit tests for parser and validation behaviors
+✅ Task run planning (run ID formatting + per-repo execution steps)
+✅ Branch name + pull request payload planning
+✅ Branch + PR creation via the GitHub client boundary (real I/O lives outside Core)
+✅ OpenAI-backed AI worker (optional; falls back to mock worker when not configured)
+✅ Issue comment reporting format + posting helper
+✅ Task claim planning and Projects V2 field update requests
+✅ Git operations to apply AI changes, commit with attribution, and push branches
+✅ Worker result validation (repo matching, destructive change checks, schema-change detection)
 
 ## Issue Body Format
 
@@ -91,11 +107,9 @@ Returns structured result:
 
 ## What's NOT Implemented (Intentionally)
 
-❌ GitHub API client  
-❌ Webhook handling  
-❌ PR/branch creation  
-❌ Network I/O  
-❌ Worker execution  
+❌ Binary file changes (text-only writes; binary content is rejected)  
+❌ Full lint/format enforcement (only basic text validation is applied)  
+❌ Additional operating modes (`/ai plan`, CI fix loops, etc.)  
 
 These will be added incrementally as separate changes.
 
@@ -115,5 +129,5 @@ dotnet test --verbosity normal
 ## Dependencies
 
 - .NET 10.0 SDK
+- OpenAI .NET SDK (used by `OpenAIWorker`)
 - xUnit (test framework only)
-- **Zero runtime dependencies** — stdlib only

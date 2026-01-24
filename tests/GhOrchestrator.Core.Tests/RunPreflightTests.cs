@@ -5,6 +5,7 @@ public class RunPreflightTests
     private static TaskSpec ValidTask => new(
         IssueNumber: 1,
         Repository: "org/repo",
+        Title: "Add logging",
         Description: "Add logging",
         Repos: new[] { "org/repo" },
         TriggerUser: "alice",
@@ -174,7 +175,8 @@ public class RunPreflightTests
         var task = new TaskSpec(
             IssueNumber: 1,
             Repository: "org/repo",
-            Description: null,
+            Title: string.Empty,
+            Description: string.Empty,
             Repos: new[] { "org/repo" },
             TriggerUser: null,
             AcceptanceCriteria: null,
@@ -183,6 +185,6 @@ public class RunPreflightTests
 
         var result = RunPreflight.Validate(task, ValidContext);
 
-        Assert.True(result.IsValid, "Should not crash on null fields");
+        Assert.True(result.IsValid, "Should not crash on empty fields");
     }
 }

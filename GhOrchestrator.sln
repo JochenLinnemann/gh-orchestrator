@@ -7,9 +7,13 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{827E0CD3-B72
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GhOrchestrator.Core", "src\GhOrchestrator.Core\GhOrchestrator.Core.csproj", "{A1838B78-07C8-47A2-A2A0-36270AAAA430}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GhOrchestrator.Host", "src\GhOrchestrator.Host\GhOrchestrator.Host.csproj", "{C3B5E8F2-1234-5678-9ABC-DEF0123456A1}"
+EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{0AB3BF05-4346-4AA6-1389-037BE0695223}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GhOrchestrator.Core.Tests", "tests\GhOrchestrator.Core.Tests\GhOrchestrator.Core.Tests.csproj", "{48D8DA01-64FB-4FFF-9B94-0ACFFD8B3EA4}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GhOrchestrator.Host.Tests", "tests\GhOrchestrator.Host.Tests\GhOrchestrator.Host.Tests.csproj", "{BA9FC521-C16E-4A11-A183-1B70ED6CE098}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -33,6 +37,18 @@ Global
 		{A1838B78-07C8-47A2-A2A0-36270AAAA430}.Release|x64.Build.0 = Release|Any CPU
 		{A1838B78-07C8-47A2-A2A0-36270AAAA430}.Release|x86.ActiveCfg = Release|Any CPU
 		{A1838B78-07C8-47A2-A2A0-36270AAAA430}.Release|x86.Build.0 = Release|Any CPU
+		{C3B5E8F2-1234-5678-9ABC-DEF0123456A1}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C3B5E8F2-1234-5678-9ABC-DEF0123456A1}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C3B5E8F2-1234-5678-9ABC-DEF0123456A1}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{C3B5E8F2-1234-5678-9ABC-DEF0123456A1}.Debug|x64.Build.0 = Debug|Any CPU
+		{C3B5E8F2-1234-5678-9ABC-DEF0123456A1}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{C3B5E8F2-1234-5678-9ABC-DEF0123456A1}.Debug|x86.Build.0 = Debug|Any CPU
+		{C3B5E8F2-1234-5678-9ABC-DEF0123456A1}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C3B5E8F2-1234-5678-9ABC-DEF0123456A1}.Release|Any CPU.Build.0 = Release|Any CPU
+		{C3B5E8F2-1234-5678-9ABC-DEF0123456A1}.Release|x64.ActiveCfg = Release|Any CPU
+		{C3B5E8F2-1234-5678-9ABC-DEF0123456A1}.Release|x64.Build.0 = Release|Any CPU
+		{C3B5E8F2-1234-5678-9ABC-DEF0123456A1}.Release|x86.ActiveCfg = Release|Any CPU
+		{C3B5E8F2-1234-5678-9ABC-DEF0123456A1}.Release|x86.Build.0 = Release|Any CPU
 		{48D8DA01-64FB-4FFF-9B94-0ACFFD8B3EA4}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{48D8DA01-64FB-4FFF-9B94-0ACFFD8B3EA4}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{48D8DA01-64FB-4FFF-9B94-0ACFFD8B3EA4}.Debug|x64.ActiveCfg = Debug|Any CPU
@@ -45,12 +61,26 @@ Global
 		{48D8DA01-64FB-4FFF-9B94-0ACFFD8B3EA4}.Release|x64.Build.0 = Release|Any CPU
 		{48D8DA01-64FB-4FFF-9B94-0ACFFD8B3EA4}.Release|x86.ActiveCfg = Release|Any CPU
 		{48D8DA01-64FB-4FFF-9B94-0ACFFD8B3EA4}.Release|x86.Build.0 = Release|Any CPU
+		{BA9FC521-C16E-4A11-A183-1B70ED6CE098}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{BA9FC521-C16E-4A11-A183-1B70ED6CE098}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{BA9FC521-C16E-4A11-A183-1B70ED6CE098}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{BA9FC521-C16E-4A11-A183-1B70ED6CE098}.Debug|x64.Build.0 = Debug|Any CPU
+		{BA9FC521-C16E-4A11-A183-1B70ED6CE098}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{BA9FC521-C16E-4A11-A183-1B70ED6CE098}.Debug|x86.Build.0 = Debug|Any CPU
+		{BA9FC521-C16E-4A11-A183-1B70ED6CE098}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{BA9FC521-C16E-4A11-A183-1B70ED6CE098}.Release|Any CPU.Build.0 = Release|Any CPU
+		{BA9FC521-C16E-4A11-A183-1B70ED6CE098}.Release|x64.ActiveCfg = Release|Any CPU
+		{BA9FC521-C16E-4A11-A183-1B70ED6CE098}.Release|x64.Build.0 = Release|Any CPU
+		{BA9FC521-C16E-4A11-A183-1B70ED6CE098}.Release|x86.ActiveCfg = Release|Any CPU
+		{BA9FC521-C16E-4A11-A183-1B70ED6CE098}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{A1838B78-07C8-47A2-A2A0-36270AAAA430} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
+		{C3B5E8F2-1234-5678-9ABC-DEF0123456A1} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 		{48D8DA01-64FB-4FFF-9B94-0ACFFD8B3EA4} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
+		{BA9FC521-C16E-4A11-A183-1B70ED6CE098} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
 	EndGlobalSection
 EndGlobal
