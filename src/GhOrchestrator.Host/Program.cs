@@ -87,6 +87,16 @@ app.MapPost("/webhook", async (HttpRequest request) =>
             @event.Repository,
             @event.IssueNumber,
             @event.CommentAuthor);
+
+        // Ignore comments that do not explicitly request a run
+        if (!@event.CommentBody.Contains("/ai start", StringComparison.OrdinalIgnoreCase))
+        {
+            app.Logger.LogInformation(
+                "Ignoring comment without /ai start: repo={Repository}, issue={Issue}",
+                @event.Repository,
+                @event.IssueNumber);
+            return Results.Ok(new { status = "Event received but ignored (no /ai start)" });
+        }
         var runId = RunIdFormatter.Format(@event.IssueNumber, DateTimeOffset.UtcNow);
 
         // Orchestrate the full task flow
