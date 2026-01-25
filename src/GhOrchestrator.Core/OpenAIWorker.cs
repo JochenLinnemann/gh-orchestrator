@@ -143,12 +143,23 @@ public sealed class OpenAIWorker : IAIWorker
         if (string.IsNullOrWhiteSpace(model))
             return false;
 
-        // Heuristic: treat common chat model names as chat-capable; default to false otherwise
+        // Heuristic: Most "gpt-" models support chat completions.
+        // Exclude known non-chat models (legacy completion/codex models).
         var normalized = model.Trim().ToLowerInvariant();
-        return normalized.Contains("gpt-4") ||
-               normalized.Contains("gpt-3.5-turbo") ||
-               normalized.Contains("gpt-4o") ||
-               normalized.Contains("o1") ||
-               normalized.Contains("turbo");
+        
+        // Known non-chat models (use completions endpoint instead)
+        if (normalized.Contains("text-") ||
+            normalized.Contains("code-") ||
+            normalized.Contains("davinci") ||
+            normalized.Contains("curie") ||
+            normalized.Contains("babbage") ||
+            normalized.Contains("ada") ||
+            normalized.Contains("codex"))
+        {
+            return false;
+        }
+
+        // Assume "gpt-" prefix means chat model (GPT-3.5, GPT-4, GPT-4o, GPT-5, o1, etc.)
+        return normalized.StartsWith("gpt-") || normalized.StartsWith("o1");
     }
 }
