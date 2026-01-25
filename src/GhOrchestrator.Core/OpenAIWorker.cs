@@ -9,19 +9,38 @@ public sealed class OpenAIWorker : IAIWorker
 {
     private readonly OpenAIWorkerConfiguration _configuration;
     private readonly IOrchestratorLogger _logger;
-    private readonly ChatClient _chatClient;
+    private readonly ChatClient? _chatClient;
+    private readonly bool _isChatModel;
 
     public OpenAIWorker(OpenAIWorkerConfiguration configuration, IOrchestratorLogger? logger = null)
     {
         _configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
         _logger = logger ?? NullOrchestratorLogger.Instance;
-        _chatClient = new ChatClient(configuration.Model, configuration.ApiKey);
+        _isChatModel = IsChatModel(configuration.Model);
+
+        if (_isChatModel)
+        {
+            _chatClient = new ChatClient(configuration.Model, configuration.ApiKey);
+        }
+        else
+        {
+            // TODO: Add support for non-chat models using the completions endpoint.
+            _chatClient = null;
+            _logger.LogWarning("Model {Model} is not a chat model; completions endpoint support is TODO", configuration.Model);
+        }
     }
 
     public async Task<AIWorkerResult> ExecuteAsync(AIWorkerRequest request, CancellationToken cancellationToken = default)
     {
         if (request is null)
             throw new ArgumentNullException(nameof(request));
+
+        if (!_isChatModel || _chatClient is null)
+        {
+            const string reason = "Configured model is not chat-compatible; TODO: add completions endpoint support.";
+            _logger.LogWarning(reason + " Model={Model}", _configuration.Model);
+            return BuildFailureResult(request.Repositories, reason);
+        }
 
         var prompt = BuildPrompt(request);
         var messages = new ChatMessage[]
@@ -117,5 +136,19 @@ public sealed class OpenAIWorker : IAIWorker
             null,
             null,
             Array.Empty<string>());
+    }
+
+    private static bool IsChatModel(string model)
+    {
+        if (string.IsNullOrWhiteSpace(model))
+            return false;
+
+        // Heuristic: treat common chat model names as chat-capable; default to false otherwise
+        var normalized = model.Trim().ToLowerInvariant();
+        return normalized.Contains("gpt-4") ||
+               normalized.Contains("gpt-3.5-turbo") ||
+               normalized.Contains("gpt-4o") ||
+               normalized.Contains("o1") ||
+               normalized.Contains("turbo");
     }
 }
