@@ -81,7 +81,9 @@ public static class AIPromptBuilder
         builder.AppendLine();
         builder.AppendLine("## Requirements");
         builder.AppendLine("- Include one repoResults entry for each repository listed.");
-        builder.AppendLine("- Use empty changes array when no updates are needed.");
+        builder.AppendLine("- Use empty changes array ONLY if all acceptance criteria are already met.");
+        builder.AppendLine("- When acceptance criteria require creating a project or files, include concrete 'create' changes with full file content.");
+        builder.AppendLine("- The 'repository' field MUST exactly match the org/repo names provided.");
         builder.AppendLine("- Do not include any text outside the JSON.");
 
         return builder.ToString().TrimEnd();
