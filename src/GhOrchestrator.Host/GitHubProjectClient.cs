@@ -95,7 +95,13 @@ internal sealed class GitHubProjectClient
         var payload = new { fields = fieldsToUpdate };
         var json = JsonSerializer.Serialize(payload);
 
+        // TODO: Remove debug logging
+        Console.WriteLine($"[DEBUG] UpdateProjectFields: PATCH {path}");
+        Console.WriteLine($"[DEBUG] UpdateProjectFields payload: {json}");
+
         await SendRequest(repository, new HttpMethod("PATCH"), path, json, cancellationToken);
+        
+        Console.WriteLine($"[DEBUG] UpdateProjectFields: Update completed successfully");
     }
 
     private async Task<ProjectMetadata> GetProjectMetadata(
@@ -259,31 +265,89 @@ internal sealed class GitHubProjectClient
         CancellationToken cancellationToken)
     {
         var org = repository.Split('/')[0];
+        var fields = await GetProjectFields(repository, org, projectId, cancellationToken);
+        var fieldIdToName = fields.ToDictionary(f => f.Id, f => f.Name, StringComparer.OrdinalIgnoreCase);
+
         var path = $"orgs/{org}/projectsV2/{projectId}/items/{itemId}";
         var json = await SendRequest(repository, HttpMethod.Get, path, null, cancellationToken);
 
+        // TODO: Remove debug logging after diagnosing field value parsing
+        Console.WriteLine($"[DEBUG] GetProjectItemFieldValues response: {json.Substring(0, Math.Min(1000, json.Length))}");
+        Console.WriteLine($"[DEBUG] Field ID to Name mappings: {string.Join(", ", fieldIdToName.Select(kv => $"{kv.Key}={kv.Value}"))}");
+
         using var document = JsonDocument.Parse(json);
-        return ParseRestFieldValues(document.RootElement);
+        var result = ParseRestFieldValues(document.RootElement, fieldIdToName);
+
+        Console.WriteLine($"[DEBUG] Parsed field values: {string.Join(", ", result.Select(kv => $"{kv.Key}={kv.Value ?? "(null)"}"))}");
+
+        return result;
     }
 
-    private static Dictionary<string, string?> ParseRestFieldValues(JsonElement itemElement)
+    private static Dictionary<string, string?> ParseRestFieldValues(
+        JsonElement itemElement,
+        Dictionary<string, string> fieldIdToName)
     {
         var values = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase);
 
-        if (!itemElement.TryGetProperty("field_values", out var fieldValuesElement))
-            return values;
+        // TODO: Remove debug logging after diagnosing field value parsing
+        Console.WriteLine($"[DEBUG] Item JSON properties: {string.Join(", ", itemElement.EnumerateObject().Select(p => p.Name))}");
 
-        foreach (var fieldProp in fieldValuesElement.EnumerateObject())
+        if (!itemElement.TryGetProperty("fields", out var fieldsElement))
         {
-            var fieldName = fieldProp.Name;
-            var valueElement = fieldProp.Value;
+            Console.WriteLine("[DEBUG] No 'fields' property found in item response");
+            return values;
+        }
 
+        Console.WriteLine($"[DEBUG] fields type: {fieldsElement.ValueKind}");
+
+        if (fieldsElement.ValueKind != JsonValueKind.Array)
+        {
+            Console.WriteLine("[DEBUG] 'fields' is not an array");
+            return values;
+        }
+
+        // Iterate over fields array
+        var elementIndex = 0;
+        foreach (var fieldElement in fieldsElement.EnumerateArray())
+        {
+            // TODO: Remove - dump more elements to find AI/Run ID fields
+            if (elementIndex < 20)
+            {
+                Console.WriteLine($"[DEBUG] Field element {elementIndex}: {fieldElement.GetRawText()}");
+            }
+            elementIndex++;
+
+            // Extract field name directly (REST API returns name in each element)
+            if (!fieldElement.TryGetProperty("name", out var nameElement))
+                continue;
+
+            var fieldName = nameElement.GetString();
+            if (string.IsNullOrWhiteSpace(fieldName))
+                continue;
+
+            // Extract value
             string? value = null;
-            if (valueElement.TryGetProperty("text", out var textElement))
-                value = textElement.GetString();
-            else if (valueElement.TryGetProperty("name", out var nameElement))
-                value = nameElement.GetString();
+            if (fieldElement.TryGetProperty("value", out var valueElement))
+            {
+                if (valueElement.ValueKind == JsonValueKind.String)
+                {
+                    value = valueElement.GetString();
+                }
+                else if (valueElement.ValueKind == JsonValueKind.Object)
+                {
+                    // Try raw, text, name, html in order
+                    if (valueElement.TryGetProperty("raw", out var rawElement))
+                        value = rawElement.GetString();
+                    else if (valueElement.TryGetProperty("text", out var textElement))
+                        value = textElement.GetString();
+                    else if (valueElement.TryGetProperty("name", out var valueNameElement))
+                        value = valueNameElement.GetString();
+                    else if (valueElement.TryGetProperty("html", out var htmlElement))
+                        value = htmlElement.GetString();
+                }
+            }
 
+            Console.WriteLine($"[DEBUG] Parsed field: fieldName={fieldName}, value={value ?? "(null)"}");
             values[fieldName] = value;
         }
 

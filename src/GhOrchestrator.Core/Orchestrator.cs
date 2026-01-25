@@ -284,6 +284,9 @@ public class Orchestrator
             runId);
         try
         {
+            // Brief delay to allow GitHub Projects API to reflect the claim update
+            await Task.Delay(TimeSpan.FromMilliseconds(500), cancellationToken);
+
             var taskSnapshot = await gitHubClient.GetProjectTaskState(
                 issueCommentEvent.Repository,
                 projectId,
@@ -291,8 +294,25 @@ public class Orchestrator
                 cancellationToken);
 
             var completionPlan = TaskCompletionPlanner.Plan(taskSnapshot.State);
+            _logger.LogInformation(
+                "Completion plan: repo={Repository}, issue={IssueNumber}, runId={RunId}, valid={Valid}, alreadyCompleted={AlreadyCompleted}, updateCount={UpdateCount}, currentAiStatus={CurrentAiStatus}",
+                issueCommentEvent.Repository,
+                issueCommentEvent.IssueNumber,
+                runId,
+                completionPlan.IsValid,
+                completionPlan.IsAlreadyCompleted,
+                completionPlan.Updates.Count,
+                taskSnapshot.State.AiStatus ?? "(null)");
+
             if (completionPlan.IsValid && !completionPlan.IsAlreadyCompleted && completionPlan.Updates.Count > 0)
             {
+                _logger.LogInformation(
+                    "Applying field updates: repo={Repository}, issue={IssueNumber}, runId={RunId}, updates={Updates}",
+                    issueCommentEvent.Repository,
+                    issueCommentEvent.IssueNumber,
+                    runId,
+                    string.Join(", ", completionPlan.Updates.Select(u => $"{u.FieldName}={u.Value}")));
+
                 await gitHubClient.UpdateProjectFields(
                     issueCommentEvent.Repository,
                     projectId,
@@ -305,6 +325,15 @@ public class Orchestrator
                     issueCommentEvent.Repository,
                     issueCommentEvent.IssueNumber,
                     runId);
+            }
+            else
+            {
+                _logger.LogInformation(
+                    "Skipped transition: repo={Repository}, issue={IssueNumber}, runId={RunId}, reason={Reason}",
+                    issueCommentEvent.Repository,
+                    issueCommentEvent.IssueNumber,
+                    runId,
+                    completionPlan.IsAlreadyCompleted ? "already blocked" : "no updates needed");
             }
         }
         catch (Exception ex)
